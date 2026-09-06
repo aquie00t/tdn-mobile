@@ -24,7 +24,7 @@ across unchanged:
 | 12 `*.types.ts` — the whole API contract | `core/api/client.ts` — body-channel refresh, rotated tokens | Every component and screen |
 | 10 `*.api.ts` — endpoint surface | `useRealtimeSocket` — AppState, NetInfo | `PageShell` breakpoints → tab navigator |
 | ~50 hooks — the business logic | Upload paths — `File` → RN asset | `react-markdown` → an RN renderer |
-| `translations.ts` — 1144 keys, tr/en | `language.store` — `expo-localization` | `caret-position.ts` — no DOM to measure |
+| `translations.ts` — 571 keys per language | `language.store` — `expo-localization` | `caret-position.ts` — no DOM to measure |
 | `mentions.ts`, `media-errors.ts`, `error-handler.ts` | `share.ts`, `image-src.ts`, `toast.store` | `worker/` — nothing to port |
 
 **Four things bite, and they are worth knowing before the first PR:**

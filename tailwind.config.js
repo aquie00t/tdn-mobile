@@ -9,13 +9,17 @@
  * slot works: `border-ink/10` is a faint light line on black and a faint dark
  * one on white, for free.
  *
- * Never write a raw neutral utility (`bg-black`, `text-white`, `bg-zinc-900`).
- * They name a pixel rather than a role, so they cannot follow a theme — one of
- * them anywhere is a spot that stays dark on a light screen.
+ * Never write a raw colour utility (`bg-black`, `text-white`, `bg-zinc-900`,
+ * `text-red-400`). They name a pixel rather than a role, so they cannot follow
+ * a theme — one of them anywhere is a spot that stays dark on a light screen.
  *
- * TODO: the accent ramp (`red-300..500`, `blue-*`, `pink-*`) is redefined under
- * the light theme on the web, because the shades that glow on black fail AA on
- * white. Port that when the first accent-heavy screen lands.
+ * That covers the accents too, which is where this diverges from the web.
+ * There, `red-400` and friends keep Tailwind's names and have their 300–500
+ * shades redefined under the light theme; `index.css` says plainly that
+ * semantic names would have been better and that renaming them across nine
+ * hundred call sites was the only reason they are not. Nothing here needs
+ * migrating, so `danger`, `success` and `accent` are roles from the start,
+ * carrying the web's values on both sides.
  */
 
 /** @type {import('tailwindcss').Config} */
@@ -38,6 +42,9 @@ module.exports = {
                 "surface-1": "rgb(var(--color-surface-1) / <alpha-value>)",
                 "surface-2": "rgb(var(--color-surface-2) / <alpha-value>)",
                 "surface-3": "rgb(var(--color-surface-3) / <alpha-value>)",
+                danger: "rgb(var(--color-danger) / <alpha-value>)",
+                success: "rgb(var(--color-success) / <alpha-value>)",
+                accent: "rgb(var(--color-accent) / <alpha-value>)",
                 scrim: "rgb(var(--color-scrim) / <alpha-value>)",
                 "on-fill": "rgb(var(--color-on-fill) / <alpha-value>)",
             },

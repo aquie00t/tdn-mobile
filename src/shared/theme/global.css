@@ -4,12 +4,20 @@
 
 /*
  * Both themes are declared here, and `tailwind.config.js` names the roles.
- * `:root` is light and `.dark:root` is dark, which is the selector NativeWind
- * drives from the colour scheme.
+ * `:root` is light and `.dark:root` is dark, which is one of the four
+ * spellings NativeWind's runtime recognises for theme-aware custom properties
+ * (the others being a `prefers-color-scheme` media query and
+ * `:root[class~="dark"]`). `.dark:root` requires `darkMode: "class"`.
  *
- * The values are `tdn-client`'s, converted to the RGB triples the alpha slot
- * needs. Keep the two in step: a role that exists on one and not the other is
- * a screen that renders a transparent block.
+ * These blocks must stay inside `@layer base`, after `@tailwind base`.
+ * NativeWind's Tailwind plugin emits the directive that tells its parser dark
+ * mode is class-based, and the parser reads rules in source order — hoisted
+ * above that directive, `.dark:root` is read as an ordinary `.dark` class rule
+ * and the whole dark palette silently disappears. No warning, no error.
+ *
+ * A role declared here but never used in a `className` anywhere is stripped
+ * from the bundle: the parser only keeps a variable that some emitted utility
+ * references. That is invisible until something tries to read one from JS.
  */
 @layer base {
     :root {
@@ -19,6 +27,20 @@
         --color-surface-1: 244 244 245;
         --color-surface-2: 228 228 231;
         --color-surface-3: 212 212 216;
+
+        /*
+         * The accents are roles rather than shade names.
+         *
+         * The web keeps Tailwind's `red-400` / `blue-400` and redefines shades
+         * 300–500 under its light theme, because renaming a hundred-odd accent
+         * utilities across nine hundred call sites would have been a rename
+         * with no behaviour behind it. That is a migration constraint, and
+         * this codebase has nothing to migrate. The values are the web's own,
+         * on both sides.
+         */
+        --color-danger: 185 28 28;
+        --color-success: 21 128 61;
+        --color-accent: 37 99 235;
 
         /* Do not swap — see tailwind.config.js. */
         --color-scrim: 0 0 0;
@@ -32,6 +54,10 @@
         --color-surface-1: 24 24 27;
         --color-surface-2: 39 39 42;
         --color-surface-3: 63 63 70;
+
+        --color-danger: 248 113 113;
+        --color-success: 74 222 128;
+        --color-accent: 96 165 250;
 
         --color-scrim: 0 0 0;
         --color-on-fill: 255 255 255;

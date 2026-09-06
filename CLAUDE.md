@@ -214,6 +214,24 @@ The roles are `tdn-client`'s, by the same names: `ground` (the page), `ink`
 `src/shared/theme/global.css` so the alpha slot works — `border-ink/10` is a
 faint light line on black and a faint dark one on white, for free.
 
+The accents diverge from the web deliberately: `danger`, `success` and `accent`
+are roles here, where the web keeps Tailwind's `red-400` names and redefines
+their shades under its light theme. That is a Tailwind 4 mechanism, and
+`index.css` says plainly that semantic names would have been better and that
+renaming nine hundred call sites was the only reason they are not.
+
+Two rules about `global.css` that fail silently if broken. The `:root` and
+`.dark:root` blocks must stay inside `@layer base`, after `@tailwind base` —
+hoisted above the directive NativeWind's plugin emits, `.dark:root` parses as
+an ordinary `.dark` class and the entire dark palette disappears with no
+warning. And a role never referenced by a `className` anywhere is stripped from
+the bundle, which only shows up when something tries to read it from JS.
+
+Strings go through `src/shared/ui/Text.tsx`, always. React Native's `Text`
+inherits neither typography nor colour from the `View` around it, so a bare
+`<Text>` renders in the platform default — black, and invisible on the dark
+ground.
+
 `scrim` and `on-fill` deliberately do **not** swap between themes: a wash over
 somebody's photo and the white on a red delete button contrast against
 something the theme did not change.
@@ -231,9 +249,15 @@ black fail contrast on white.
 
 ## Testing
 
-Vitest + MSW, `environment: "node"`. There is no component testing yet — that
-needs a renderer and a different set of native module mocks, and is a decision
-to make when the first component needs it.
+Vitest + MSW, `environment: "node"`. **There is no component testing, and that
+is a decision rather than a gap.** Rendering React Native under Vitest needs
+the RN preset's Babel transform for its Flow-typed, untranspiled sources —
+real infrastructure — and the primitives in `src/shared/ui/` are wrappers over
+class strings with no branching worth asserting.
+
+Revisit when a component carries logic rather than styling: a `ListState`
+choosing between loading, error and empty, or a composer mirroring a character
+cap. Until then, components are verified by running the app.
 
 **MSW runs with `onUnhandledRequest: "error"`.** An unhandled request is a bug,
 not a fallback to the real network. `tests/msw-server.ts` registers no default

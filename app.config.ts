@@ -38,7 +38,21 @@ const config: ExpoConfig = {
         versionCode: ANDROID_VERSION_CODE,
     },
 
-    plugins: ["expo-router", "expo-secure-store", "expo-web-browser"],
+    plugins: [
+        "expo-router",
+        "expo-secure-store",
+        "expo-web-browser",
+        [
+            /*
+             * The splash is held open until the stored theme has been read, so
+             * its background has to be the dark ground. Left at the platform
+             * default it is white, and holding a white splash while waiting for
+             * a dark theme lengthens the flash rather than removing it.
+             */
+            "expo-splash-screen",
+            { backgroundColor: "#000000", resizeMode: "contain" },
+        ],
+    ],
 
     experiments: {
         typedRoutes: true,

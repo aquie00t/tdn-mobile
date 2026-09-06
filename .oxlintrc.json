@@ -1,0 +1,122 @@
+{
+    "plugins": [
+        "react",
+        "import",
+        "typescript",
+        "unicorn",
+        "oxc"
+    ],
+    "categories": {
+        "correctness": "error",
+        "suspicious": "warn",
+        "perf": "warn"
+    },
+    "rules": {
+        "react-hooks/exhaustive-deps": "error",
+        "react-hooks/rules-of-hooks": "error",
+        "eqeqeq": "error",
+        "no-console": "warn",
+        "react/react-in-jsx-scope": "off",
+        "react/style-prop-object": "off",
+        "import/no-unassigned-import": "off",
+        "import/no-named-as-default-member": "off"
+    },
+    "ignorePatterns": [
+        "node_modules",
+        "android",
+        "ios",
+        "dist",
+        ".expo"
+    ],
+    "overrides": [
+        {
+            "files": [
+                "src/core/**",
+                "src/shared/**"
+            ],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            "@features/*/**",
+                            "../features/**",
+                            "../../features/**",
+                            "../../../features/**"
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": [
+                "src/features/**"
+            ],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            "@features/*/**",
+                            "../../*/ui/**",
+                            "../../*/data/**",
+                            "../../*/domain/**",
+                            "../../../*/ui/**",
+                            "../../../*/data/**",
+                            "../../../*/domain/**",
+                            "../../../../*/ui/**",
+                            "../../../../*/data/**",
+                            "../../../../*/domain/**"
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": [
+                "src/features/*/data/**"
+            ],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            "@features/*/**",
+                            "@shared/ui/**",
+                            "../ui/**",
+                            "../../*/ui/**",
+                            "../../*/data/**",
+                            "../../*/domain/**",
+                            "../../../*/ui/**",
+                            "../../../*/data/**",
+                            "../../../*/domain/**"
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": [
+                "src/features/*/domain/**"
+            ],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            "@features/*/**",
+                            "@shared/ui/**",
+                            "@core/**",
+                            "../ui/**",
+                            "../data/**",
+                            "../../../core/**",
+                            "../../*/ui/**",
+                            "../../*/data/**",
+                            "../../*/domain/**"
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}

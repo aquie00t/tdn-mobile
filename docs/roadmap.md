@@ -53,7 +53,8 @@ across unchanged:
 
 ## Phase 0 — Foundations
 
-Three PRs that are not features and cannot be avoided. Kept as tight as they go.
+Four PRs that are not features on their own and cannot be avoided. Kept as
+tight as they go.
 
 ### PR 1 — Network client
 
@@ -78,21 +79,53 @@ better than none.
 client throws the problem document, exactly as the web one does. No feature
 calls this yet.
 
-### PR 2 — Design system and i18n
+### PR 2 — i18n and the error layer
 
-`translations.ts` copied verbatim, `useI18n`, `translate`, the language store
-seeded from `expo-localization` rather than `navigator.language`, the theme
-store, and the first UI primitives: `Screen`, `Text`, `Button`, `Avatar`,
-`Spinner`, `Toast`, `EmptyState`, `ErrorState`.
+`translations.ts` copied verbatim — 571 keys per language, whose only import is
+a type and none of whose values contain markup. `translate`, `useI18n`, and the
+language store, seeded from `expo-localization` rather than `navigator.language`
+and persisted through a `StateStorage` adapter over `StoragePort`, because
+`persist` reaches for `localStorage` by default and there is none.
 
-`ErrorState` and `EmptyState` exist from the start on purpose. The web client's
+`error-handler.ts` and `media-errors.ts` come with it rather than with the
+client in PR 1, because `getErrorMessage` calls `translate()` and could not
+land before the translations did.
+
+Rehydration becomes asynchronous here: `localStorage` answered during the first
+render and `AsyncStorage` answers a tick later, so there is a frame holding the
+detected locale rather than the stored one. Harmless for language, not harmless
+for the theme — PR 3 gates the UI on `persist.hasHydrated()` once, for both.
+
+**Not in it:** nothing renders. No primitives, no theme.
+
+### PR 3 — Design system
+
+The theme store and `useTheme` — simpler than the web's, because NativeWind's
+`useColorScheme().setColorScheme()` already takes `"light" | "dark" | "system"`
+and resolves the last one itself, where the web had to resolve it and stamp
+`data-theme` by hand.
+
+Then the primitives the first screens actually need: `Screen`, `Text`,
+`Button`, `Spinner`, `EmptyState`, `ErrorState`, `Toast`. `Avatar` and `Modal`
+wait for the screen that uses them — a component designed without a call site
+is usually designed wrong.
+
+`ErrorState` and `EmptyState` are primitives from the start on purpose. The
 rule is that every list renders explicit loading, error-with-retry and empty
-states and never silently renders nothing; making them primitives is how that
-survives contact with twenty screens.
+states and never silently renders nothing, and on the web that rule is kept by
+duplicating the triple inline across seven files in two dialects — one of which
+hand-writes a button that is `variant="primary" size="sm"` respelled. One
+`ListState` here, taking the translation-key prefix as a prop, needs no new
+strings.
+
+Two things the web learned that come across with it: `Button`'s `size="lg"` is
+used at zero of 51 call sites, so it is not ported; and skeletons are
+`bg-surface-2`, the `bg-ink/10` sites being stragglers from before the token
+rename.
 
 **Not in it:** no navigation, no screens.
 
-### PR 3 — Session and sign-in
+### PR 4 — Session and sign-in
 
 `core/session/`, the auth data layer, and the identifier → login | register →
 verify-email flow, plus forgot-password → reset-password.
@@ -110,7 +143,7 @@ The session-expired handler clears the session and reopens sign-in.
 
 ## Phase 1 — A usable app
 
-### PR 4 — OAuth sign-in
+### PR 5 — OAuth sign-in
 
 `expo-auth-session` against `GET /oauth/{github,google}?redirect=tdn://…`, then
 `POST /oauth/exchange`. The exchange takes no client flag and must not be given
@@ -120,7 +153,7 @@ one: the channel was recorded on the code when the flow started.
 `OAUTH_NATIVE_REDIRECT_ALLOWLIST`, which is an exact match with no prefix test.
 Until it is, every attempt is a 400.
 
-### PR 5 — App shell and tab navigation
+### PR 6 — App shell and tab navigation
 
 Five tabs mirroring `BottomNav`: Home, Explore, Notifications, Messages,
 Profile. Unread badges wired to the stores that already exist. The guard that
@@ -128,7 +161,7 @@ turns a mutation by a signed-out reader into the sign-in sheet.
 
 **Not in it:** tab contents beyond placeholders.
 
-### PR 6 — Feed
+### PR 7 — Feed
 
 `useFeed` ported whole — including the request-id guard that stops a slow page
 from a tab you have left landing last. `FlatList` with pull-to-refresh and
@@ -136,7 +169,7 @@ from a tab you have left landing last. `FlatList` with pull-to-refresh and
 
 **Not in it:** media, likes, bookmarks, quotes. The card renders them dead.
 
-### PR 7 — Post media
+### PR 8 — Post media
 
 `SensitiveMedia` and `PendingMedia`, image and video rendering, and
 `usePendingMedia` polling the one post — never the feed, which is cached 60 s
@@ -147,18 +180,18 @@ app is backgrounded.
 `QuotedPostCard` must pass the quoted post's own flag, or quoting becomes the
 way around the filter.
 
-### PR 8 — Post interactions
+### PR 9 — Post interactions
 
 `usePostActions`: like and bookmark, optimistic with rollback in `catch` and a
 toast on failure. Share through RN's `Share`.
 
-### PR 9 — Post detail and comments
+### PR 10 — Post detail and comments
 
 The detail screen, `useComments`, `useCommentReplies`, `CommentCard`, and the
 comment composer. A comment hangs off a post or an article and never both —
 narrow `postId` / `articleId` rather than asserting.
 
-### PR 10 — Composing a post
+### PR 11 — Composing a post
 
 `PostBox`, the image picker, and `POST /media` with its moderation handling:
 `withModerationRetry` absorbs exactly one 503, and `clearsSelection` defaults
@@ -167,23 +200,23 @@ to **keeping** the files, naming only the four verdicts that discard them.
 One upload belongs to one piece of content — re-sending `mediaUrls` is
 `MediaNotOwnedError`, safe to retry after a 5xx and not after a success.
 
-### PR 11 — Quoting
+### PR 12 — Quoting
 
 The quote composer and `QuotedPostCard`. A quote is a post that carries another
 post, so lists and actions need no special case; the embedded card is always
 exactly one level deep.
 
-### PR 12 — Profile
+### PR 13 — Profile
 
 `useProfile`, the profile screen, the user's posts, and follower/following
 lists. Render from `isBlocked` and `isBlockedBy` separately from the start —
 they need different screens, and retrofitting that is worse than writing it.
 
-### PR 13 — Following
+### PR 14 — Following
 
 `useFollowAction`, optimistic with a silent rollback.
 
-### PR 14 — Notifications and the realtime socket
+### PR 15 — Notifications and the realtime socket
 
 The list, the badge from `GET /notifications/unread-count` — never counted off
 a page — and `useRealtimeSocket` carrying `new-notification`.
@@ -194,7 +227,7 @@ burning five retries in a tunnel.
 
 **Not in it:** the five message events. They arrive with messaging.
 
-### PR 15 — Push notifications
+### PR 16 — Push notifications
 
 The `PushPort` adapter, `POST /devices` at **every** launch, `DELETE /devices`
 before discarding a session on sign-out, and tap routing from `data.type` plus
@@ -207,14 +240,14 @@ notification would have been useful, not at first launch.
 **Deployment dependency:** `PUSH_ENABLED=true` and, if the Expo project has
 push security on, `EXPO_ACCESS_TOKEN`.
 
-### PR 16 — Onboarding
+### PR 17 — Onboarding
 
 The gate and the two-step flow. It stands down while sign-in is open, passes
 rather than redirects when the profile request fails, and settles for good once
 finished — a live `< 5` check drags an account back the moment it unfollows
 somebody.
 
-### PR 17 — Update gate
+### PR 18 — Update gate
 
 `GET /meta/client?build=<versionCode>` at launch, and a blocking screen when
 `updateRequired`.
@@ -226,7 +259,7 @@ without this can never be told it is too old.
 **Deployment dependency:** `MOBILE_MIN_SUPPORTED_BUILD`, `MOBILE_LATEST_BUILD`
 and `MOBILE_STORE_URL_ANDROID` are `0`/empty today.
 
-> **First release cuts here.** PRs 1–17 are sign-in, a feed you can read and
+> **First release cuts here.** PRs 1–18 are sign-in, a feed you can read and
 > post to, profiles, notifications that reach a closed app, and a way to
 > retire the build. Everything below is the second release.
 
@@ -234,20 +267,20 @@ and `MOBILE_STORE_URL_ANDROID` are `0`/empty today.
 
 ## Phase 2 — Completing the surface
 
-### PR 18 — Explore, trends and search
+### PR 19 — Explore, trends and search
 
 `useTrends`, `useTagSearch`, `useProfileSearch`, tag and category filtering.
 
-### PR 19 — Bookmarks
+### PR 20 — Bookmarks
 
 One endpoint returning posts, comments and articles together.
 
-### PR 20 — Settings
+### PR 21 — Settings
 
 Account info, username, email and password changes, account deletion behind a
 password, theme and language.
 
-### PR 21 — Blocking
+### PR 22 — Blocking
 
 The one mutation that is **not** optimistic: a block that failed leaves a
 screen indistinguishable from one where it worked, so `useBlockAction` awaits
@@ -257,7 +290,7 @@ than patches, because a block also tears down both follows.
 
 The blocked list in Settings is the only route back to a block.
 
-### PR 22 — Reporting
+### PR 23 — Reporting
 
 Posts and comments only, one endpoint, no read side. The answer is always
 `{ received: true }`, so there is no "already reported" state to keep and
@@ -266,7 +299,7 @@ nothing local to remember. Report and delete are mutually exclusive on a card.
 `useReport` returns its error rather than toasting it — the dialog holding the
 reason and the text is still on screen.
 
-### PR 23 — Mentions
+### PR 24 — Mentions
 
 Rendering first: a handle links only when it matches an entry in `mentions`,
 case-insensitively. The grammar in `shared/utils/mentions.ts` mirrors the API's
@@ -276,32 +309,32 @@ Then autocomplete, which needs a positioning strategy of its own — see the not
 at the top. A bottom sheet or an anchored list above the keyboard is likely to
 beat trying to reproduce the caret measurement.
 
-### PR 24 — Messages: the inbox
+### PR 25 — Messages: the inbox
 
 Cursor-paginated conversations, the requests tab, accept and decline. Render
 from `isRequest` and `canSend`, never from `status`. The unread badge counts
 `ACCEPTED` only.
 
-### PR 25 — Messages: the thread
+### PR 26 — Messages: the thread
 
 The thread screen, the composer with its 4000-character cap mirrored, read
 watermarks under the newest outgoing message only, and tombstones that keep
 their place.
 
-### PR 26 — Messages: media and realtime
+### PR 27 — Messages: media and realtime
 
 `POST /messages/media` on its own channel, and the five chat events joining the
-socket from PR 14. `mediaRejected` renders "media removed" here — a deliberate
+socket from PR 15. `mediaRejected` renders "media removed" here — a deliberate
 exception to the rule for posts, because a message carries the fact in a field
 rather than reconstructing it from session memory.
 
-### PR 27 — Articles: reading
+### PR 28 — Articles: reading
 
 The list and the reading screen, which needs an RN markdown renderer and a
 remark-equivalent for linking mentions inside the tree rather than over
 rendered output.
 
-### PR 28 — Article editor
+### PR 29 — Article editor
 
 Deliberately last. Markdown authoring, cover upload, autosave and
 draft/publish. The most expensive screen on a phone and the least used; it
@@ -315,7 +348,7 @@ Four things live in the API's environment and block a PR each:
 
 | Needed by | Variable |
 | --- | --- |
-| PR 4 | `OAUTH_NATIVE_REDIRECT_ALLOWLIST` — exact `tdn://` target |
-| PR 15 | `PUSH_ENABLED`, `EXPO_ACCESS_TOKEN` |
-| PR 17 | `MOBILE_MIN_SUPPORTED_BUILD`, `MOBILE_LATEST_BUILD`, `MOBILE_STORE_URL_ANDROID` |
+| PR 5 | `OAUTH_NATIVE_REDIRECT_ALLOWLIST` — exact `tdn://` target |
+| PR 16 | `PUSH_ENABLED`, `EXPO_ACCESS_TOKEN` |
+| PR 18 | `MOBILE_MIN_SUPPORTED_BUILD`, `MOBILE_LATEST_BUILD`, `MOBILE_STORE_URL_ANDROID` |
 | Release | A Play Console entry, before `GooglePlayBillingService` can replace the stub |

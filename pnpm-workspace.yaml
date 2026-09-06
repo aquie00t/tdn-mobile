@@ -8,3 +8,10 @@
 # this file, and a `node-linker` line in .npmrc is silently ignored (npm even
 # warns about it as an unknown config).
 nodeLinker: hoisted
+
+# msw's postinstall writes a service worker for the browser. Only `msw/node` is
+# used here, so the script has nothing to do. pnpm 11 refuses to install while
+# a build script is neither allowed nor declined, so this says so explicitly
+# rather than leaving every install to fail on the prompt.
+allowBuilds:
+  msw: false

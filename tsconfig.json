@@ -1,0 +1,27 @@
+{
+    "extends": "expo/tsconfig.base",
+    "compilerOptions": {
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noFallthroughCasesInSwitch": true,
+        "verbatimModuleSyntax": true,
+        "erasableSyntaxOnly": true,
+        "jsxImportSource": "nativewind",
+        "noEmit": true,
+        "paths": {
+            "@/*": ["./src/*"],
+            "@core/*": ["./src/core/*"],
+            "@features/*": ["./src/features/*"],
+            "@shared/*": ["./src/shared/*"]
+        }
+    },
+    "include": [
+        "**/*.ts",
+        "**/*.tsx",
+        ".expo/types/**/*.ts",
+        "expo-env.d.ts",
+        "nativewind-env.d.ts"
+    ],
+    "exclude": ["node_modules", "android", "ios", "dist"]
+}

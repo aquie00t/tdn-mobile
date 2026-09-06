@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Both themes are declared here, and `tailwind.config.js` names the roles.
+ * `:root` is light and `.dark:root` is dark, which is the selector NativeWind
+ * drives from the colour scheme.
+ *
+ * The values are `tdn-client`'s, converted to the RGB triples the alpha slot
+ * needs. Keep the two in step: a role that exists on one and not the other is
+ * a screen that renders a transparent block.
+ */
+@layer base {
+    :root {
+        --color-ground: 255 255 255;
+        --color-ink: 10 10 11;
+        --color-ink-hover: 63 63 70;
+        --color-surface-1: 244 244 245;
+        --color-surface-2: 228 228 231;
+        --color-surface-3: 212 212 216;
+
+        /* Do not swap — see tailwind.config.js. */
+        --color-scrim: 0 0 0;
+        --color-on-fill: 255 255 255;
+    }
+
+    .dark:root {
+        --color-ground: 0 0 0;
+        --color-ink: 255 255 255;
+        --color-ink-hover: 229 231 235;
+        --color-surface-1: 24 24 27;
+        --color-surface-2: 39 39 42;
+        --color-surface-3: 63 63 70;
+
+        --color-scrim: 0 0 0;
+        --color-on-fill: 255 255 255;
+    }
+}

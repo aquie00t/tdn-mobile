@@ -1,0 +1,10 @@
+# React Native resolves native modules by walking node_modules, which pnpm's
+# symlinked layout hides from it. Metro then fails to resolve a transitive
+# dependency it is pointed at directly — `react-native-css-interop/jsx-runtime`,
+# which NativeWind's Babel preset emits into every file — and native
+# autolinking finds nothing at all.
+#
+# This lives here rather than in .npmrc: pnpm 11 reads its own settings from
+# this file, and a `node-linker` line in .npmrc is silently ignored (npm even
+# warns about it as an unknown config).
+nodeLinker: hoisted

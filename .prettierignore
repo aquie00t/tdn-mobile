@@ -1,0 +1,25 @@
+# Build & Dependencies
+node_modules
+dist
+web-build
+.expo
+
+# Generated native projects
+android
+ios
+
+# Configs & Logs
+.git
+.cache
+.env
+*.log
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Assets
+assets
+
+# IDEs
+.vscode
+.idea

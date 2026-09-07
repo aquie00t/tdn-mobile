@@ -6,7 +6,9 @@ import { ErrorState } from "../shared/ui/ErrorState";
 import { Screen } from "../shared/ui/Screen";
 import { Spinner } from "../shared/ui/Spinner";
 import { Text } from "../shared/ui/Text";
+import { useAuthActions } from "../features/auth/ui/hooks/useAuthActions";
 import { useI18n } from "../shared/hooks/useI18n";
+import { useSessionStore } from "../core/session/session.store";
 import { useTheme } from "../shared/hooks/useTheme";
 import { useToastStore } from "../shared/store/toast.store";
 import type { Theme } from "../shared/store/theme.store";
@@ -40,6 +42,8 @@ export default function IndexScreen() {
     const { t, locale } = useI18n();
     const { theme, setTheme } = useTheme();
     const addToast = useToastStore((s) => s.addToast);
+    const user = useSessionStore((s) => s.user);
+    const { signOut } = useAuthActions();
 
     return (
         <Screen scroll>
@@ -47,6 +51,17 @@ export default function IndexScreen() {
                 <Text size="display">TDN</Text>
                 <Text tone="muted">The Developer Network</Text>
             </View>
+
+            <Row
+                label={`session · @${user?.username}${user?.isEmailVerified ? "" : " · unverified"}`}
+            >
+                <Button
+                    label="Sign out"
+                    size="sm"
+                    variant="outline"
+                    onPress={() => void signOut()}
+                />
+            </Row>
 
             <Row label={`theme · ${theme}`}>
                 <View className="flex-row gap-2">

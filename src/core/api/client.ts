@@ -26,11 +26,20 @@ export const IDEMPOTENCY_HEADER = "Idempotency-Key";
 
 /**
  * `EXPO_PUBLIC_` variables are inlined into the bundle at build time, which is
- * why this is a URL and not a secret. The fallback is the local backend the
- * other repos expect during development.
+ * why this is a URL and not a secret.
+ *
+ * The default is **production**, which inverts the web client's arrangement on
+ * purpose. There, `localhost` is a sound default because the browser runs on
+ * the same machine as the dev server. Here it is never right: `localhost` on a
+ * phone is the phone, so the default that costs nothing on the web fails every
+ * request with "connection refused" and reads as a broken app.
+ *
+ * Point it at a local API by setting `EXPO_PUBLIC_API_URL` — with the machine's
+ * LAN address, not `localhost`. `.env.example` has the shape.
  */
 export const BASE_URL =
-    process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+    process.env.EXPO_PUBLIC_API_URL ??
+    "https://api.developernetwork.net/api/v1";
 
 type SessionExpiredHandler = () => void;
 let _onSessionExpired: SessionExpiredHandler | null = null;

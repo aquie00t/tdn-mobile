@@ -4,6 +4,7 @@ import { View } from "react-native";
 
 import { AUTH_LIMITS } from "../../data/auth.types";
 import { Button } from "@shared/ui/Button";
+import { Logo } from "@shared/ui/Logo";
 import { Screen } from "@shared/ui/Screen";
 import { Text } from "@shared/ui/Text";
 import { TextField } from "@shared/ui/TextField";
@@ -45,36 +46,52 @@ export function IdentifierScreen() {
     };
 
     return (
-        <Screen scroll className="px-6">
-            <View className="gap-2 pb-8 pt-4">
-                <Text size="display">{t("auth.joinTitle")}</Text>
+        <Screen className="px-6">
+            {/*
+             * Three bands: the mark sits at the top where a brand belongs, the
+             * form takes the middle and is centred in whatever is left, and the
+             * terms sit at the bottom. The middle is `flex-1`, so the form
+             * stays optically centred on a small phone and on a tall one
+             * without either being measured.
+             */}
+            <View className="items-center pb-2 pt-6">
+                <Logo size={44} />
             </View>
 
-            <View className="gap-4">
-                <TextField
-                    value={value}
-                    onChangeText={setValue}
-                    placeholder={t("auth.identifierPlaceholder")}
-                    error={error}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoComplete="username"
-                    keyboardType="email-address"
-                    maxLength={AUTH_LIMITS.identifierMax}
-                    returnKeyType="next"
-                    onSubmitEditing={() => void handleNext()}
-                />
+            <View className="flex-1 justify-center gap-6 pb-10">
+                <Text size="display" className="text-center">
+                    {t("auth.joinTitle")}
+                </Text>
 
-                <Button
-                    label={isLoading ? t("auth.checking") : t("auth.next")}
-                    size="full"
-                    loading={isLoading}
-                    disabled={!value.trim()}
-                    onPress={() => void handleNext()}
-                />
+                <View className="gap-4">
+                    <TextField
+                        value={value}
+                        onChangeText={(next) => {
+                            setValue(next);
+                            if (error) setError(null);
+                        }}
+                        placeholder={t("auth.identifierPlaceholder")}
+                        error={error}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="username"
+                        keyboardType="email-address"
+                        maxLength={AUTH_LIMITS.identifierMax}
+                        returnKeyType="next"
+                        onSubmitEditing={() => void handleNext()}
+                    />
+
+                    <Button
+                        label={isLoading ? t("auth.checking") : t("auth.next")}
+                        size="full"
+                        loading={isLoading}
+                        disabled={!value.trim()}
+                        onPress={() => void handleNext()}
+                    />
+                </View>
             </View>
 
-            <Text size="caption" tone="subtle" className="pt-8 text-center">
+            <Text size="caption" tone="subtle" className="pb-4 text-center">
                 {t("auth.termsPrefix")} {t("auth.terms")} {t("auth.and")}{" "}
                 {t("auth.privacy")}
                 {t("auth.termsSuffix")}

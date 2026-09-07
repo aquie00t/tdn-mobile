@@ -17,10 +17,12 @@ vi.mock("expo-secure-store", () => ({
     },
 }));
 
+import { BASE_URL } from "@core/api/client";
 import { authApi } from "./auth.api";
 import { clearTokens, setTokens } from "@core/session/tokens";
 
-const BASE = "http://localhost:8080/api/v1";
+/** From the client, so a change to the default cannot silently unhook these. */
+const BASE = BASE_URL;
 
 function problem(detail: string, status: number, title = "UnauthorizedError") {
     return HttpResponse.json(

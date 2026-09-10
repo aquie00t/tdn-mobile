@@ -1,5 +1,6 @@
 import { Pressable, View } from "react-native";
-import { memo, useState } from "react";
+import { memo } from "react";
+import { useRouter } from "expo-router";
 
 import { Avatar } from "@shared/ui/Avatar";
 import {
@@ -8,28 +9,32 @@ import {
     LikeIcon,
     ShareIcon,
 } from "@shared/ui/icons/lucide";
-import { CommentBox } from "./CommentBox";
-import type { Comment, CommentTarget } from "../../data/comment.types";
-import { ErrorState } from "@shared/ui/ErrorState";
+import type { Comment } from "../../data/comment.types";
 import type { LucideIcon } from "lucide-react-native";
-import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
 import { useCommentActions } from "../hooks/useCommentActions";
 import { useCommentOverlayStore } from "../store/comment-overlay.store";
-import { useCommentReplies } from "../hooks/useCommentReplies";
 import { useI18n } from "@shared/hooks/useI18n";
 import { withOverlay } from "@shared/store/create-overlay-store";
 
 export interface CommentCardProps {
     comment: Comment;
-    /** Needed to post a reply — a reply hangs off the same target. */
-    target: CommentTarget;
     /**
-     * Off for a reply. Replies are one level deep: the API has no route for a
-     * reply's replies, so a nested card must not offer to open — or add to —
-     * a thread that cannot exist.
+     * Off where the card is already the head of the screen it is on — a
+     * comment that opens its own thread from inside that thread would go
+     * nowhere.
      */
-    canReply?: boolean;
+    isPressable?: boolean;
+    /**
+     * The subject of the screen it is on, rather than a row in a list.
+     *
+     * Drawn at the post card's weight — a bigger face, body text instead of
+     * the list's small — because a screen whose head looks like one of its own
+     * rows does not say what it is about. The web draws both the same and gets
+     * away with it: a page has a title bar, three columns and a URL saying
+     * where you are, none of which a phone has.
+     */
+    isHead?: boolean;
 }
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
@@ -48,62 +53,58 @@ function formatCommentDate(iso: string, locale: string): string {
     return formatter.format(new Date(iso));
 }
 
+/**
+ * One comment.
+ *
+ * **Pressing it opens its own thread**, and that is the whole shape of nesting
+ * here: a comment is not expanded in place, it becomes the head of a screen
+ * where its replies are the list and the composer writes into it. Replying to
+ * a reply is the same move again, one screen deeper.
+ *
+ * An earlier draft expanded replies inline under the card and capped the depth
+ * at one. Both were inventions. The API caps nothing — `create-comment` only
+ * checks that a parent belongs to the same post — and the web has carried the
+ * per-comment screen from the start.
+ */
 function CommentCardView({
     comment: serverComment,
-    target,
-    canReply = true,
+    isPressable = true,
+    isHead = false,
 }: CommentCardProps) {
     const { t, locale } = useI18n();
+    const router = useRouter();
 
     const overlays = useCommentOverlayStore((s) => s.overlays);
     const comment = withOverlay(serverComment, overlays);
 
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [isReplying, setIsReplying] = useState(false);
-
     const { handleLike, isLikeLoading, handleBookmark, handleShare } =
         useCommentActions({ comment });
 
-    const {
-        replies,
-        isLoading,
-        error,
-        fetchReplies,
-        hasMore,
-        isLoadingMore,
-        loadMore,
-        addReply,
-    } = useCommentReplies(comment.id);
+    const open = () =>
+        router.push({
+            pathname: "/comments/[id]",
+            params: { id: comment.id },
+        });
 
-    /**
-     * Replies are read when somebody asks for them, not when the thread
-     * renders. A screen of twenty comments would otherwise make twenty
-     * requests before the reader has decided to open any of them.
-     */
-    const expand = () => {
-        setIsExpanded(true);
-        if (replies.length === 0) void fetchReplies();
-    };
-
-    const handleToggle = () => {
-        if (isExpanded) setIsExpanded(false);
-        else expand();
-    };
-
-    /**
-     * A reply is posted into a thread that may not be open yet, so opening it
-     * is part of starting to write one — otherwise the reply lands somewhere
-     * the author cannot see.
-     */
-    const handleStartReply = () => {
-        setIsReplying(true);
-        if (!isExpanded) expand();
-    };
+    const Row = isPressable ? Pressable : View;
 
     return (
-        <View className="border-b border-ink/5 px-4 py-3">
+        <Row
+            // Nested pressables: a tap on one of the controls below is handled
+            // there and never reaches this one, so the row can open the thread
+            // without swallowing a like.
+            {...(isPressable
+                ? { accessibilityRole: "button" as const, onPress: open }
+                : {})}
+            className={
+                isHead ? "px-4 pb-3 pt-4" : "border-b border-ink/5 px-4 py-3"
+            }
+        >
             <View className="flex-row gap-3">
-                <Avatar uri={comment.author.avatarUrl} size={32} />
+                <Avatar
+                    uri={comment.author.avatarUrl}
+                    size={isHead ? 40 : 32}
+                />
 
                 <View className="flex-1 gap-1.5">
                     <View className="flex-row items-center gap-1.5">
@@ -124,19 +125,47 @@ function CommentCardView({
                         >
                             @{comment.author.username}
                         </Text>
-                        <Text size="small" tone="subtle">
-                            ·
-                        </Text>
-                        <Text size="small" tone="subtle">
-                            {formatCommentDate(comment.createdAt, locale)}
-                        </Text>
+
+                        {/* The head carries the full stamp below instead. */}
+                        {!isHead && (
+                            <>
+                                <Text size="small" tone="subtle">
+                                    ·
+                                </Text>
+                                <Text size="small" tone="subtle">
+                                    {formatCommentDate(
+                                        comment.createdAt,
+                                        locale,
+                                    )}
+                                </Text>
+                            </>
+                        )}
                     </View>
 
-                    <Text size="small">{comment.content}</Text>
+                    <Text size={isHead ? "body" : "small"}>
+                        {comment.content}
+                    </Text>
 
-                    <View className="flex-row items-center gap-5 pt-0.5">
+                    <View
+                        className={
+                            isHead
+                                ? "flex-row items-center gap-6 pt-1"
+                                : "flex-row items-center gap-5 pt-0.5"
+                        }
+                    >
+                        <Action
+                            icon={CommentIcon}
+                            size={isHead ? 16 : 14}
+                            count={comment.replyCount}
+                            isActive={false}
+                            disabled={!isPressable}
+                            label={t("commentBox.reply")}
+                            onPress={open}
+                        />
+
                         <Action
                             icon={LikeIcon}
+                            size={isHead ? 16 : 14}
                             count={comment.likeCount}
                             isActive={comment.isLiked}
                             activeClassName="text-like"
@@ -145,28 +174,9 @@ function CommentCardView({
                             onPress={() => void handleLike()}
                         />
 
-                        {canReply ? (
-                            <Action
-                                icon={CommentIcon}
-                                count={comment.replyCount}
-                                isActive={isExpanded}
-                                activeClassName="text-ink"
-                                label={t("commentBox.reply")}
-                                onPress={handleToggle}
-                            />
-                        ) : (
-                            <Action
-                                icon={CommentIcon}
-                                count={comment.replyCount}
-                                isActive={false}
-                                disabled
-                                label={t("commentBox.reply")}
-                                onPress={() => {}}
-                            />
-                        )}
-
                         <Action
                             icon={BookmarkIcon}
+                            size={isHead ? 16 : 14}
                             isActive={comment.isBookmarked}
                             activeClassName="text-accent"
                             label={t("post.bookmark")}
@@ -175,76 +185,15 @@ function CommentCardView({
 
                         <Action
                             icon={ShareIcon}
+                            size={isHead ? 16 : 14}
                             isActive={false}
                             label={t("post.share")}
                             onPress={() => void handleShare()}
                         />
-
-                        {canReply && !isReplying && (
-                            <Pressable
-                                accessibilityRole="button"
-                                onPress={handleStartReply}
-                                hitSlop={8}
-                                className="ml-auto"
-                            >
-                                <Text size="caption" tone="accent">
-                                    {t("commentBox.reply")}
-                                </Text>
-                            </Pressable>
-                        )}
                     </View>
                 </View>
             </View>
-
-            {isReplying && (
-                <View className="mt-2 pl-11">
-                    <CommentBox
-                        target={target}
-                        parentId={comment.id}
-                        placeholder={t("commentBox.placeholder")}
-                        isInline
-                        onCommentCreated={(reply) => {
-                            addReply(reply);
-                            setIsReplying(false);
-                        }}
-                    />
-                </View>
-            )}
-
-            {isExpanded && (
-                <View className="mt-2 gap-1 border-l border-ink/10 pl-5">
-                    {isLoading && <Spinner />}
-
-                    {error && !isLoading && (
-                        <ErrorState message={error} onRetry={fetchReplies} />
-                    )}
-
-                    {replies.map((reply) => (
-                        <CommentCard
-                            key={reply.id}
-                            comment={reply}
-                            target={target}
-                            canReply={false}
-                        />
-                    ))}
-
-                    {hasMore && !isLoading && (
-                        <Pressable
-                            accessibilityRole="button"
-                            disabled={isLoadingMore}
-                            onPress={() => void loadMore()}
-                            className="py-2"
-                        >
-                            <Text size="caption" tone="accent">
-                                {isLoadingMore
-                                    ? t("common.loadingMore")
-                                    : t("common.loadMore")}
-                            </Text>
-                        </Pressable>
-                    )}
-                </View>
-            )}
-        </View>
+        </Row>
     );
 }
 
@@ -262,6 +211,7 @@ function Action({
     activeClassName = "text-ink",
     disabled,
     label,
+    size = 14,
     onPress,
 }: {
     icon: LucideIcon;
@@ -270,6 +220,7 @@ function Action({
     activeClassName?: string;
     disabled?: boolean;
     label: string;
+    size?: number;
     onPress: () => void;
 }) {
     const tone = isActive ? activeClassName : "text-ink/40";
@@ -285,13 +236,9 @@ function Action({
             className="flex-row items-center gap-1.5"
         >
             <Icon
-                size={14}
+                size={size}
                 className={tone}
-                fill={
-                    isActive && activeClassName !== "text-ink"
-                        ? "currentColor"
-                        : "none"
-                }
+                fill={isActive ? "currentColor" : "none"}
             />
             {count !== undefined && (
                 <Text size="caption" tone="subtle" className={tone}>

@@ -61,6 +61,21 @@ describe("collection paths", () => {
         expect(seen).toBe(`${new URL(BASE).pathname}${path}`);
     });
 
+    it("reads one comment from the shared per-comment route", async () => {
+        let seen: string | null = null;
+
+        server.use(
+            http.get(`${BASE}/comments/c1`, ({ request }) => {
+                seen = new URL(request.url).pathname;
+                return ok({ id: "c1" });
+            }),
+        );
+
+        await commentApi.getCommentById("c1");
+
+        expect(seen).toBe(`${new URL(BASE).pathname}/comments/c1`);
+    });
+
     it("reads replies from the shared per-comment route", async () => {
         // Only the two collection routes differ between posts and articles;
         // everything under `/comments/:id` is the same for both.

@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable } from "react-native";
 import type { PressableProps } from "react-native";
+import type { ReactNode } from "react";
 
 import { Text } from "./Text";
 import { cn } from "./cn";
@@ -29,6 +30,15 @@ export interface ButtonProps extends Omit<PressableProps, "children"> {
     variant?: keyof typeof VARIANTS;
     size?: keyof typeof SIZES;
     loading?: boolean;
+    /**
+     * Drawn before the label, and swapped out by the spinner while loading —
+     * a mark and an indicator in the same row read as two things happening.
+     *
+     * A node rather than a name, because the marks that need one are brand
+     * artwork rather than members of an icon set: the icon knows its own size
+     * and, where it has one, its own colour.
+     */
+    icon?: ReactNode;
     className?: string;
 }
 
@@ -46,6 +56,7 @@ export function Button({
     variant = "primary",
     size = "md",
     loading = false,
+    icon,
     disabled,
     className,
     ...props
@@ -71,8 +82,10 @@ export function Button({
             )}
             {...props}
         >
-            {loading && (
+            {loading ? (
                 <ActivityIndicator size="small" className={labelTone} />
+            ) : (
+                icon
             )}
             <Text size={s.text} className={cn("font-semibold", labelTone)}>
                 {label}

@@ -1,6 +1,8 @@
 import { View } from "react-native";
 
 import { Button } from "@shared/ui/Button";
+import { GithubIcon } from "@shared/ui/icons/GithubIcon";
+import { GoogleIcon } from "@shared/ui/icons/GoogleIcon";
 import { Text } from "@shared/ui/Text";
 import type { OAuthProvider } from "../../data/oauth.types";
 import { useI18n } from "@shared/hooks/useI18n";
@@ -47,6 +49,7 @@ export function SocialButtons({
                     label={t("auth.googleSignUp")}
                     variant="outline"
                     size="full"
+                    icon={<GoogleIcon />}
                     loading={pending === "google"}
                     disabled={disabled || pending !== null}
                     onPress={() => onSelect("google")}
@@ -56,6 +59,7 @@ export function SocialButtons({
                     label={t("auth.githubSignUp")}
                     variant="outline"
                     size="full"
+                    icon={<GithubIcon />}
                     loading={pending === "github"}
                     disabled={disabled || pending !== null}
                     onPress={() => onSelect("github")}

@@ -2,17 +2,21 @@ import {
     ArrowLeft,
     Bell,
     Bookmark,
+    Camera,
     CircleUser,
     Clock,
     Compass,
     EyeOff,
     Heart,
     Home,
+    ImagePlus,
     Mail,
     MessageCircle,
+    Plus,
     Repeat2,
     RefreshCw,
     Send,
+    X,
     Share2,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
@@ -59,6 +63,18 @@ export const BackIcon = themed(ArrowLeft);
 
 /** Writing. */
 export const SendIcon = themed(Send);
+export const AddMediaIcon = themed(ImagePlus);
+
+/**
+ * Starting something, rather than sending it.
+ *
+ * The feed's write button began as the send glyph and was wrong: a paper
+ * plane says "this goes now", and nothing goes when it is pressed — a
+ * composer opens. Sending has its own control, at the top of that screen.
+ */
+export const CreateIcon = themed(Plus);
+export const CameraIcon = themed(Camera);
+export const CloseIcon = themed(X);
 
 /** A post's actions, and the counters beside them. */
 export const BookmarkIcon = themed(Bookmark);

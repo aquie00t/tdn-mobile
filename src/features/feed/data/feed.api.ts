@@ -63,4 +63,27 @@ export const feedApi = {
      */
     getPostById: (postId: string): Promise<Post> =>
         api.get<Post>(`/posts/${postId}`, { isPublic: true }),
+
+    /*
+     * Liking and saving are four routes rather than two toggles, and the pairs
+     * are **not** symmetric: the verb changes *and* so does the last path
+     * segment — `like`/`unlike`, `save`/`unsave`. Writing `DELETE /like` is a
+     * 404, which an optimistic caller shows as a heart that fills and empties
+     * again a moment later, with no clue why.
+     *
+     * None of them takes an idempotency key, and none should. The eight routes
+     * that accept one create something; these four set a flag, so sending the
+     * same request twice lands on the same state the first one did.
+     */
+    likePost: (postId: string): Promise<void> =>
+        api.post(`/posts/${postId}/like`, {}),
+
+    unlikePost: (postId: string): Promise<void> =>
+        api.delete(`/posts/${postId}/unlike`, { contentType: false }),
+
+    savePost: (postId: string): Promise<void> =>
+        api.post(`/posts/${postId}/save`, {}),
+
+    unsavePost: (postId: string): Promise<void> =>
+        api.delete(`/posts/${postId}/unsave`, { contentType: false }),
 };

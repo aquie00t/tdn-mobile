@@ -1,8 +1,14 @@
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import { memo } from "react";
 
 import { Avatar } from "@shared/ui/Avatar";
-import { CommentIcon, LikeIcon, QuoteIcon } from "@shared/ui/icons/lucide";
+import {
+    BookmarkIcon,
+    CommentIcon,
+    LikeIcon,
+    QuoteIcon,
+    ShareIcon,
+} from "@shared/ui/icons/lucide";
 import type { LucideIcon } from "lucide-react-native";
 import { PendingMedia } from "@shared/ui/PendingMedia";
 import type { Post } from "../../data/feed.types";
@@ -11,6 +17,7 @@ import { SensitiveMedia } from "@shared/ui/SensitiveMedia";
 import { Text } from "@shared/ui/Text";
 import { useI18n } from "@shared/hooks/useI18n";
 import { usePendingMedia } from "../hooks/usePendingMedia";
+import { usePostActions } from "../hooks/usePostActions";
 
 export interface PostCardProps extends Post {
     /**
@@ -19,6 +26,12 @@ export interface PostCardProps extends Post {
      * the wait but offers no way to end it.
      */
     onUpdated?: (post: Post) => void;
+    /**
+     * Writes a change into the list that owns this post. Liking and saving are
+     * optimistic and roll back through the same call, so a card without one
+     * has nowhere to put the result — which is why they are not drawn.
+     */
+    onPatch?: (postId: string, changes: Partial<Post>) => void;
 }
 
 /**
@@ -50,26 +63,25 @@ function formatPostDate(iso: string, locale: string): string {
 /**
  * One row of the feed.
  *
- * The counters are numbers rather than buttons, and that is still this card's
- * boundary: liking and bookmarking land in PR 9, the quoted card in PR 12, and
- * opening the post in PR 10. They are drawn as plain views rather than
- * disabled `Pressable`s on purpose — a button that answers a tap with nothing
- * reads as broken, where a number reads as a number.
- *
- * Media is no longer among them. The block below renders attachments, covers
- * the ones the server flagged, and stands in for a video still being checked.
+ * Liking, saving and sharing work. The comment and quote counts are still
+ * numbers rather than buttons — opening the post is PR 10, quoting it is PR 12
+ * — and they stay plain views rather than disabled `Pressable`s, because a
+ * button that answers a tap with nothing reads as broken where a number reads
+ * as a number.
  *
  * `mentions` therefore flows through as ordinary text. PR 24 brings the
  * renderer that turns `@ada` into something you can press.
  */
-function PostCardView({ onUpdated, ...post }: PostCardProps) {
-    const { locale } = useI18n();
+function PostCardView({ onUpdated, onPatch, ...post }: PostCardProps) {
+    const { t, locale } = useI18n();
     const date = formatPostDate(post.createdAt, locale);
     const { refresh, isRefreshing } = usePendingMedia({
         postId: post.id,
         mediaPending: post.mediaPending,
         onUpdated,
     });
+    const { handleLike, isLikeLoading, handleBookmark, handleShare } =
+        usePostActions({ post, onPatch: onPatch ?? noPatch });
 
     return (
         <View className="flex-row gap-3 border-b border-ink/10 px-4 py-4">
@@ -146,10 +158,35 @@ function PostCardView({ onUpdated, ...post }: PostCardProps) {
                     </SensitiveMedia>
                 )}
 
-                <View className="flex-row items-center gap-6 pt-1">
+                <View className="flex-row items-center gap-5 pt-1">
                     <Counter icon={CommentIcon} count={post.commentCount} />
-                    <Counter icon={LikeIcon} count={post.likeCount} />
                     <Counter icon={QuoteIcon} count={post.quoteCount} />
+
+                    <Action
+                        icon={LikeIcon}
+                        count={post.likeCount}
+                        isActive={post.isLiked}
+                        activeClassName="text-like"
+                        disabled={isLikeLoading || !onPatch}
+                        label={t("post.like")}
+                        onPress={() => void handleLike()}
+                    />
+
+                    <Action
+                        icon={BookmarkIcon}
+                        isActive={post.isBookmarked}
+                        activeClassName="text-accent"
+                        disabled={!onPatch}
+                        label={t("post.bookmark")}
+                        onPress={() => void handleBookmark()}
+                    />
+
+                    <Action
+                        icon={ShareIcon}
+                        isActive={false}
+                        label={t("post.share")}
+                        onPress={() => void handleShare()}
+                    />
                 </View>
             </View>
         </View>
@@ -165,6 +202,70 @@ function PostCardView({ onUpdated, ...post }: PostCardProps) {
  * every visible row along with it.
  */
 export const PostCard = memo(PostCardView);
+
+/** Somewhere for the hook's writes to go when the card has no owner. */
+const noPatch = () => {};
+
+/**
+ * A control, and the number beside it when there is one.
+ *
+ * `hitSlop` rather than a bigger box: five of these share the width the avatar
+ * leaves, so the tap target has to grow outside the layout rather than inside
+ * it. Below about 44px a thumb misses.
+ */
+function Action({
+    icon: Icon,
+    count,
+    isActive,
+    activeClassName = "text-ink",
+    disabled,
+    label,
+    onPress,
+}: {
+    icon: LucideIcon;
+    count?: number;
+    isActive: boolean;
+    /** The role this control wears when it is on. */
+    activeClassName?: string;
+    disabled?: boolean;
+    label: string;
+    onPress: () => void;
+}) {
+    const tone = isActive ? activeClassName : "text-ink/40";
+
+    return (
+        <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive, disabled: !!disabled }}
+            accessibilityLabel={label}
+            disabled={disabled}
+            onPress={onPress}
+            hitSlop={10}
+            className="flex-row items-center gap-1.5"
+        >
+            {/*
+             * Filled as well as tinted, which is what the web does — the shape
+             * carries the state where the colour cannot, for anyone who does
+             * not separate pink from blue.
+             *
+             * The two roles are the web's own hues: a liked heart is `like`
+             * (its `pink-500`) and a saved post is `accent` (its `blue-400`).
+             * `like` exists as a role for this one control; `tailwind.config`
+             * says why a colour named after a feature earned its place there.
+             */}
+            <Icon
+                size={16}
+                className={tone}
+                fill={isActive ? "currentColor" : "none"}
+            />
+            {count !== undefined && (
+                <Text size="small" tone="subtle" className={tone}>
+                    {count}
+                </Text>
+            )}
+        </Pressable>
+    );
+}
 
 function Counter({ icon: Icon, count }: { icon: LucideIcon; count: number }) {
     return (

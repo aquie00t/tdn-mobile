@@ -216,3 +216,61 @@ describe("getPostById", () => {
         expect(sent).toEqual(["Bearer stale", null]);
     });
 });
+
+describe("like and save", () => {
+    /**
+     * The four routes are not symmetric — the verb changes and so does the
+     * last path segment. `DELETE /posts/:id/like` is a 404, which an
+     * optimistic caller shows as a heart that fills and empties again with no
+     * explanation, so the exact shapes are pinned here.
+     */
+    it.each([
+        ["likePost", "POST", "/posts/p1/like"],
+        ["unlikePost", "DELETE", "/posts/p1/unlike"],
+        ["savePost", "POST", "/posts/p1/save"],
+        ["unsavePost", "DELETE", "/posts/p1/unsave"],
+    ])("%s is %s %s", async (name, method, path) => {
+        let seen: { method: string; path: string } | null = null;
+
+        const record = ({ request }: { request: Request }) => {
+            seen = {
+                method: request.method,
+                path: new URL(request.url).pathname,
+            };
+            return new HttpResponse(null, { status: 204 });
+        };
+
+        server.use(
+            http.post(`${BASE}${path}`, record),
+            http.delete(`${BASE}${path}`, record),
+        );
+
+        const call = feedApi[name as keyof typeof feedApi] as (
+            id: string,
+        ) => Promise<void>;
+        await call("p1");
+
+        expect(seen).toEqual({
+            method,
+            path: `${new URL(BASE).pathname}${path}`,
+        });
+    });
+
+    it("sends the reader's token, because none of these is public", async () => {
+        // A like is an act, not a read. Flagged public it would be replayed
+        // anonymously on a stale token and silently do nothing.
+        await setTokens({ accessToken: "fresh" });
+        let auth: string | null = null;
+
+        server.use(
+            http.post(`${BASE}/posts/p1/like`, ({ request }) => {
+                auth = request.headers.get("Authorization");
+                return new HttpResponse(null, { status: 204 });
+            }),
+        );
+
+        await feedApi.likePost("p1");
+
+        expect(auth).toBe("Bearer fresh");
+    });
+});

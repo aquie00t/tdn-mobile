@@ -1,4 +1,4 @@
-import { FlatList, KeyboardAvoidingView, Platform, View } from "react-native";
+import { FlatList, KeyboardAvoidingView, View } from "react-native";
 import { useCallback, useEffect, useMemo } from "react";
 
 import { Button } from "@shared/ui/Button";
@@ -89,7 +89,7 @@ export function CommentThreadScreen({ commentId }: { commentId: string }) {
     };
 
     return (
-        <Screen edges={{ top: true, bottom: true }}>
+        <Screen edges={{ top: true, bottom: false }}>
             <ScreenHeader title={t("page.comment")} />
 
             {isLoading && !comment && <Spinner center />}
@@ -103,10 +103,7 @@ export function CommentThreadScreen({ commentId }: { commentId: string }) {
             )}
 
             {comment && (
-                <KeyboardAvoidingView
-                    className="flex-1"
-                    behavior={Platform.OS === "ios" ? "padding" : undefined}
-                >
+                <KeyboardAvoidingView className="flex-1" behavior="padding">
                     <FlatList
                         data={replies}
                         keyExtractor={keyOf}

@@ -56,14 +56,21 @@ export function createOverlayStore<T extends Identified>() {
 /**
  * The item as it should be drawn.
  *
+ * **Takes one overlay, not the map**, and that distinction is the difference
+ * between a list that scrolls and one that does not. Subscribing to
+ * `s.overlays` hands every subscriber a new object on every patch, so liking
+ * one post re-rendered every card on screen — twenty rows, their avatars,
+ * their media and their bodies — to change one heart. Selecting
+ * `s.overlays[id]` gives each card a slice that only changes when *that* item
+ * does, and Zustand compares it by reference.
+ *
  * @param item - The server's copy
- * @param overlays - The whole overlay map
+ * @param overlay - This item's overlay, or nothing
  * @returns The item with the reader's own changes on top
  */
 export function withOverlay<T extends Identified>(
     item: T,
-    overlays: Record<string, Partial<T>>,
+    overlay: Partial<T> | undefined,
 ): T {
-    const overlay = overlays[item.id];
     return overlay ? { ...item, ...overlay } : item;
 }

@@ -1,7 +1,7 @@
-import { EmptyState } from "../../shared/ui/EmptyState";
-import { Screen } from "../../shared/ui/Screen";
-import { ExploreIcon } from "../../shared/ui/icons/lucide";
-import { useI18n } from "../../shared/hooks/useI18n";
+import { EmptyState } from "@shared/ui/EmptyState";
+import { Screen } from "@shared/ui/Screen";
+import { ExploreIcon } from "@shared/ui/icons/lucide";
+import { useI18n } from "@shared/hooks/useI18n";
 
 /**
  * A placeholder. The tab exists so the shell can be walked end to end; what

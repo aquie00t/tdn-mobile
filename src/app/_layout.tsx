@@ -6,13 +6,13 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { ToastHost } from "../shared/ui/Toast";
-import { clearTokens, loadTokens } from "../core/session/tokens";
-import { registerSessionExpiredHandler } from "../core/api/client";
-import { useLanguageStore } from "../shared/store/language.store";
-import { useSessionStore } from "../core/session/session.store";
-import { useTheme } from "../shared/hooks/useTheme";
-import { useThemeStore } from "../shared/store/theme.store";
+import { ToastHost } from "@shared/ui/Toast";
+import { clearTokens, loadTokens } from "@core/session/tokens";
+import { registerSessionExpiredHandler } from "@core/api/client";
+import { useLanguageStore } from "@shared/store/language.store";
+import { useSessionStore } from "@core/session/session.store";
+import { useApplyColorScheme } from "@shared/hooks/useTheme";
+import { useThemeStore } from "@shared/store/theme.store";
 
 /**
  * Held open until the stored theme, language and session have been read.
@@ -112,7 +112,7 @@ function useAuthGate(ready: boolean) {
 
 export default function RootLayout() {
     const ready = useBootstrap();
-    useTheme();
+    useApplyColorScheme();
     useAuthGate(ready);
 
     useEffect(() => {

@@ -1,6 +1,5 @@
 import {
     KeyboardAvoidingView,
-    Platform,
     ScrollView,
     TextInput,
     View,
@@ -113,10 +112,7 @@ export function ComposeScreen() {
                 }
             />
 
-            <KeyboardAvoidingView
-                className="flex-1"
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
-            >
+            <KeyboardAvoidingView className="flex-1" behavior="padding">
                 <ScrollView
                     className="flex-1"
                     keyboardShouldPersistTaps="handled"

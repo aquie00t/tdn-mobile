@@ -9,7 +9,7 @@ import { getErrorMessage } from "@shared/utils/error-handler";
 import { MediaPicker } from "@shared/ui/MediaPicker";
 import { useMediaSelection } from "@shared/hooks/useMediaSelection";
 import { newIdempotencyKey } from "@core/api/idempotency";
-import { ProfileIcon, SendIcon } from "@shared/ui/icons/lucide";
+import { AddMediaIcon, ProfileIcon, SendIcon } from "@shared/ui/icons/lucide";
 import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
 import { useI18n } from "@shared/hooks/useI18n";
@@ -133,8 +133,8 @@ export function CommentBox({
                 <View
                     className={
                         isTooLong
-                            ? "flex-1 justify-center rounded-3xl border border-danger bg-surface-1 px-4"
-                            : "flex-1 justify-center rounded-3xl bg-surface-1 px-4"
+                            ? "flex-1 flex-row items-center rounded-3xl border border-danger bg-surface-1 px-4"
+                            : "flex-1 flex-row items-center rounded-3xl bg-surface-1 px-4"
                     }
                 >
                     <TextInput
@@ -158,8 +158,33 @@ export function CommentBox({
                         // explanation; the counter says what is wrong and the
                         // control refuses, which is something to act on.
                         autoCapitalize="sentences"
-                        className="py-2.5 text-base text-ink placeholder:text-ink/35 selection:text-accent"
+                        className="flex-1 py-2.5 text-base text-ink placeholder:text-ink/35 selection:text-accent"
                     />
+
+                    {/*
+                     * Inside the pill rather than on a row of its own. A
+                     * permanent control row under every comment box is height
+                     * spent whether or not anybody attaches anything, and this
+                     * box sits under a thread that wants the space.
+                     *
+                     * The library only — the camera stays in the post
+                     * composer. Two icons in a pill this narrow leaves the
+                     * field about forty per cent of a 360px screen.
+                     */}
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t("postBox.media")}
+                        disabled={isSubmitting || media.remainingSlots <= 0}
+                        onPress={() => void media.pickFromLibrary()}
+                        hitSlop={8}
+                        className={
+                            media.remainingSlots <= 0
+                                ? "pl-1 opacity-30"
+                                : "pl-1"
+                        }
+                    >
+                        <AddMediaIcon size={18} className="text-ink/50" />
+                    </Pressable>
                 </View>
 
                 <Pressable
@@ -187,22 +212,21 @@ export function CommentBox({
                 </Pressable>
             </View>
 
-            {/*
-             * Always drawn, not only once something is picked — otherwise
-             * there is no way to pick the first file. Indented past the
-             * avatar so the controls line up with what is being written.
-             */}
-            <View className="pl-10 pt-1">
-                <MediaPicker
-                    assets={media.assets}
-                    onPickFromLibrary={() => void media.pickFromLibrary()}
-                    onTakePhoto={() => void media.takePhoto()}
-                    onRemove={media.removeAsset}
-                    remainingSlots={media.remainingSlots}
-                    max={media.max}
-                    disabled={isSubmitting}
-                />
-            </View>
+            {/* The grid only, and only once something is in it. */}
+            {media.assets.length > 0 && (
+                <View className="pl-10 pt-2">
+                    <MediaPicker
+                        showControls={false}
+                        assets={media.assets}
+                        onPickFromLibrary={() => void media.pickFromLibrary()}
+                        onTakePhoto={() => void media.takePhoto()}
+                        onRemove={media.removeAsset}
+                        remainingSlots={media.remainingSlots}
+                        max={media.max}
+                        disabled={isSubmitting}
+                    />
+                </View>
+            )}
 
             {trimmed.length > COUNTER_THRESHOLD && (
                 <Text

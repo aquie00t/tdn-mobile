@@ -27,7 +27,7 @@ export function useComment(commentId: string) {
         isLoading: true,
         error: null,
     });
-    const overlays = useCommentOverlayStore((s) => s.overlays);
+    const overlay = useCommentOverlayStore((s) => s.overlays[commentId]);
 
     const fetchComment = useCallback(async () => {
         try {
@@ -48,7 +48,7 @@ export function useComment(commentId: string) {
     }, [fetchComment]);
 
     return {
-        comment: state.comment ? withOverlay(state.comment, overlays) : null,
+        comment: state.comment ? withOverlay(state.comment, overlay) : null,
         isLoading: state.isLoading,
         error: state.error,
         fetchComment,

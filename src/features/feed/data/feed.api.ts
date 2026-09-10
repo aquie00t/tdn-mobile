@@ -54,6 +54,30 @@ export const feedApi = {
     },
 
     /**
+     * One account's posts, newest first.
+     *
+     * Paged by number, like the feed — the profile's *follow* lists next to it
+     * page by offset instead. The two endpoints simply differ, and writing one
+     * as though it were the other is how a list starts skipping rows.
+     *
+     * Lives here rather than with the rest of the profile because it answers
+     * posts: the type and the card that draw them are the feed's, and a
+     * feature may not reach into another for either.
+     */
+    getUserPosts: (
+        username: string,
+        params: { page?: number; limit?: number } = {},
+    ): Promise<Post[]> => {
+        const query = new URLSearchParams();
+        query.set("page", String(params.page ?? 1));
+        query.set("limit", String(params.limit ?? PAGE_LIMIT));
+
+        return api.get<Post[]>(`/users/${username}/posts?${query.toString()}`, {
+            isPublic: true,
+        });
+    },
+
+    /**
      * One post, re-read.
      *
      * Called while a video is being checked, and only for the post carrying

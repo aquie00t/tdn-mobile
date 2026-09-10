@@ -1,1 +1,1 @@
-export { VerifyEmailScreen as default } from "../../features/auth/ui/screens/VerifyEmailScreen";
+export { VerifyEmailScreen as default } from "@features/auth/ui/screens/VerifyEmailScreen";

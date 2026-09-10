@@ -9,6 +9,11 @@ export interface ScreenHeaderProps {
     title: string;
     /** Drawn on the right — an action belonging to whatever is below. */
     right?: React.ReactNode;
+    /**
+     * Off on a tab, which was not pushed and has nothing to go back to. The
+     * arrow would be a control that either does nothing or leaves the app.
+     */
+    showBack?: boolean;
 }
 
 /**
@@ -24,21 +29,29 @@ export interface ScreenHeaderProps {
  * are not enough: nothing on screen said the gesture existed, and a screen
  * with no visible way out reads as a screen you are stuck on.
  */
-export function ScreenHeader({ title, right }: ScreenHeaderProps) {
+export function ScreenHeader({
+    title,
+    right,
+    showBack = true,
+}: ScreenHeaderProps) {
     const { t } = useI18n();
     const router = useRouter();
 
     return (
         <View className="h-14 flex-row items-center gap-1 border-b border-ink/10 px-2">
-            <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("common.back")}
-                onPress={() => router.back()}
-                hitSlop={8}
-                className="h-10 w-10 items-center justify-center rounded-full active:bg-ink/10"
-            >
-                <BackIcon size={22} className="text-ink" />
-            </Pressable>
+            {showBack ? (
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common.back")}
+                    onPress={() => router.back()}
+                    hitSlop={8}
+                    className="h-10 w-10 items-center justify-center rounded-full active:bg-ink/10"
+                >
+                    <BackIcon size={22} className="text-ink" />
+                </Pressable>
+            ) : (
+                <View className="w-2" />
+            )}
 
             <Text
                 size="lead"

@@ -15,6 +15,12 @@ export interface MediaPickerProps {
     remainingSlots: number;
     max: number;
     disabled?: boolean;
+    /**
+     * Off where the caller draws its own way to add a file — a chat composer
+     * puts that inside the input row rather than under it, because a control
+     * row that is always there is a control row you always pay for.
+     */
+    showControls?: boolean;
 }
 
 const FILL = { width: "100%", height: "100%" } as const;
@@ -40,6 +46,7 @@ export function MediaPicker({
     remainingSlots,
     max,
     disabled = false,
+    showControls = true,
 }: MediaPickerProps) {
     const { t } = useI18n();
     const isFull = remainingSlots <= 0;
@@ -83,26 +90,28 @@ export function MediaPicker({
                 </View>
             )}
 
-            <View className="flex-row items-center gap-1">
-                <Control
-                    icon={AddMediaIcon}
-                    label={t("postBox.media")}
-                    disabled={disabled || isFull}
-                    onPress={onPickFromLibrary}
-                />
-                <Control
-                    icon={CameraIcon}
-                    label={t("postBox.media")}
-                    disabled={disabled || isFull}
-                    onPress={onTakePhoto}
-                />
+            {showControls && (
+                <View className="flex-row items-center gap-1">
+                    <Control
+                        icon={AddMediaIcon}
+                        label={t("postBox.media")}
+                        disabled={disabled || isFull}
+                        onPress={onPickFromLibrary}
+                    />
+                    <Control
+                        icon={CameraIcon}
+                        label={t("postBox.media")}
+                        disabled={disabled || isFull}
+                        onPress={onTakePhoto}
+                    />
 
-                {assets.length > 0 && (
-                    <Text size="caption" tone="subtle" className="ml-1">
-                        {assets.length}/{max}
-                    </Text>
-                )}
-            </View>
+                    {assets.length > 0 && (
+                        <Text size="caption" tone="subtle" className="ml-1">
+                            {assets.length}/{max}
+                        </Text>
+                    )}
+                </View>
+            )}
         </View>
     );
 }

@@ -1,4 +1,4 @@
-import { FlatList, KeyboardAvoidingView, Platform, View } from "react-native";
+import { FlatList, KeyboardAvoidingView, View } from "react-native";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo } from "react";
 
@@ -92,15 +92,16 @@ export function CommentList({
 
     return (
         /*
-         * Android resizes the window when the keyboard opens — Expo's default
-         * — so the layout below pushes the composer up on its own and this
-         * wrapper is told to do nothing there. On iOS nothing resizes, and
-         * without the padding the box is typed into from behind the keyboard.
+         * `padding` on **both** platforms.
+         *
+         * This used to be iOS-only, on the reasoning that Android resizes the
+         * window for the keyboard and would lift the composer by itself. That
+         * stopped being true: React Native 0.86 draws Android edge to edge,
+         * and under edge to edge the window does not resize — the keyboard is
+         * drawn over the content. Told to do nothing, this wrapper did
+         * nothing, and the box was covered the moment it was tapped.
          */
-        <KeyboardAvoidingView
-            className="flex-1"
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
+        <KeyboardAvoidingView className="flex-1" behavior="padding">
             <FlatList
                 data={comments}
                 keyExtractor={keyOf}

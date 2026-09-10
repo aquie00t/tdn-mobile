@@ -47,9 +47,13 @@ export function FeedScreen() {
         void fetchPosts(type);
     }, [type, fetchPosts]);
 
-    // Stable, so a re-render of this screen does not hand `FlatList` a new
-    // function and make it rebuild every visible row. `replacePost` is stable
-    // for the same reason, which is what keeps this one stable in turn.
+    // All three are stable, so a re-render of this screen does not hand
+    // `FlatList` new functions — it treats a changed `onEndReached` as a
+    // reason to re-evaluate, and a changed `renderItem` as a reason to rebuild
+    // every visible row.
+    const handleRefresh = useCallback(() => void refresh(), [refresh]);
+    const handleEndReached = useCallback(() => void loadMore(), [loadMore]);
+
     const renderItem = useCallback(
         ({ item }: { item: Post }) => (
             <PostCard {...item} onUpdated={replacePost} />
@@ -89,13 +93,22 @@ export function FeedScreen() {
                     keyExtractor={keyOf}
                     renderItem={renderItem}
                     refreshing={isRefreshing}
-                    onRefresh={() => void refresh()}
-                    onEndReached={() => void loadMore()}
+                    onRefresh={handleRefresh}
+                    onEndReached={handleEndReached}
                     onEndReachedThreshold={END_THRESHOLD}
-                    // `windowSize` is left at its default. An earlier draft
-                    // lowered it to 5, which is the opposite of what it reads
-                    // as: it shrinks the mounted window, so a scroll does more
-                    // mounting, not less.
+                    /*
+                     * `windowSize` is measured in screenfuls, and its default
+                     * of 21 means ten of them either side of what is visible —
+                     * so a feed of twenty posts keeps every one of them
+                     * mounted. That is why a theme change felt slow: every
+                     * card in memory repaints, not the two or three on screen.
+                     *
+                     * An earlier comment here claimed lowering it made
+                     * scrolling mount *more*. That was wrong, and it is the
+                     * reason it was left at the default for two PRs.
+                     */
+                    windowSize={7}
+                    maxToRenderPerBatch={5}
                     initialNumToRender={INITIAL_ROWS}
                     ListEmptyComponent={
                         <EmptyState title={t("postList.empty")} />

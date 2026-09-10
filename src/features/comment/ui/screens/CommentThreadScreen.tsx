@@ -10,6 +10,7 @@ import { ErrorState } from "@shared/ui/ErrorState";
 import { Screen } from "@shared/ui/Screen";
 import { ScreenHeader } from "@shared/layout/ScreenHeader";
 import { Spinner } from "@shared/ui/Spinner";
+import { Text } from "@shared/ui/Text";
 import { useComment } from "../hooks/useComment";
 import { useCommentReplies } from "../hooks/useCommentReplies";
 import { useI18n } from "@shared/hooks/useI18n";
@@ -26,7 +27,7 @@ const keyOf = (reply: Comment) => reply.id;
  * that a parent belongs to the same post.
  */
 export function CommentThreadScreen({ commentId }: { commentId: string }) {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
 
     const {
         comment,
@@ -70,6 +71,13 @@ export function CommentThreadScreen({ commentId }: { commentId: string }) {
         return null;
     }, [postId, articleId]);
 
+    const stamp = comment
+        ? new Intl.DateTimeFormat(locale, {
+              dateStyle: "long",
+              timeStyle: "short",
+          }).format(new Date(comment.createdAt))
+        : "";
+
     const renderItem = useCallback(
         ({ item }: { item: Comment }) => <CommentCard comment={item} />,
         [],
@@ -105,18 +113,29 @@ export function CommentThreadScreen({ commentId }: { commentId: string }) {
                         renderItem={renderItem}
                         ListHeaderComponent={
                             <>
-                                {/* Not pressable: it is already this screen. */}
-                                <CommentCard
-                                    comment={comment}
-                                    isPressable={false}
-                                />
-
                                 {/*
-                                 * No heading over the replies. There is no key
-                                 * for one and the 571 are copied verbatim; the
-                                 * head card and the composer already say where
-                                 * the comment ends and the answers begin.
+                                 * Drawn the way `PostDetailHeader` draws a
+                                 * post: the subject at full weight with its
+                                 * whole timestamp under it, closed by one
+                                 * rule. Left at list weight, the head of this
+                                 * screen looked like one of its own replies
+                                 * and the screen said nothing about what it
+                                 * was for.
+                                 *
+                                 * Not pressable: it is already this screen.
                                  */}
+                                <View className="border-b border-ink/10">
+                                    <CommentCard
+                                        comment={comment}
+                                        isPressable={false}
+                                        isHead
+                                    />
+                                    <View className="px-4 pb-4">
+                                        <Text size="caption" tone="subtle">
+                                            {stamp}
+                                        </Text>
+                                    </View>
+                                </View>
 
                                 {isLoadingReplies && (
                                     <View className="py-8">

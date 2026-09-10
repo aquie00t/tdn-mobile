@@ -25,6 +25,16 @@ export interface CommentCardProps {
      * nowhere.
      */
     isPressable?: boolean;
+    /**
+     * The subject of the screen it is on, rather than a row in a list.
+     *
+     * Drawn at the post card's weight — a bigger face, body text instead of
+     * the list's small — because a screen whose head looks like one of its own
+     * rows does not say what it is about. The web draws both the same and gets
+     * away with it: a page has a title bar, three columns and a URL saying
+     * where you are, none of which a phone has.
+     */
+    isHead?: boolean;
 }
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
@@ -59,6 +69,7 @@ function formatCommentDate(iso: string, locale: string): string {
 function CommentCardView({
     comment: serverComment,
     isPressable = true,
+    isHead = false,
 }: CommentCardProps) {
     const { t, locale } = useI18n();
     const router = useRouter();
@@ -85,10 +96,15 @@ function CommentCardView({
             {...(isPressable
                 ? { accessibilityRole: "button" as const, onPress: open }
                 : {})}
-            className="border-b border-ink/5 px-4 py-3"
+            className={
+                isHead ? "px-4 pb-3 pt-4" : "border-b border-ink/5 px-4 py-3"
+            }
         >
             <View className="flex-row gap-3">
-                <Avatar uri={comment.author.avatarUrl} size={32} />
+                <Avatar
+                    uri={comment.author.avatarUrl}
+                    size={isHead ? 40 : 32}
+                />
 
                 <View className="flex-1 gap-1.5">
                     <View className="flex-row items-center gap-1.5">
@@ -109,19 +125,37 @@ function CommentCardView({
                         >
                             @{comment.author.username}
                         </Text>
-                        <Text size="small" tone="subtle">
-                            ·
-                        </Text>
-                        <Text size="small" tone="subtle">
-                            {formatCommentDate(comment.createdAt, locale)}
-                        </Text>
+
+                        {/* The head carries the full stamp below instead. */}
+                        {!isHead && (
+                            <>
+                                <Text size="small" tone="subtle">
+                                    ·
+                                </Text>
+                                <Text size="small" tone="subtle">
+                                    {formatCommentDate(
+                                        comment.createdAt,
+                                        locale,
+                                    )}
+                                </Text>
+                            </>
+                        )}
                     </View>
 
-                    <Text size="small">{comment.content}</Text>
+                    <Text size={isHead ? "body" : "small"}>
+                        {comment.content}
+                    </Text>
 
-                    <View className="flex-row items-center gap-5 pt-0.5">
+                    <View
+                        className={
+                            isHead
+                                ? "flex-row items-center gap-6 pt-1"
+                                : "flex-row items-center gap-5 pt-0.5"
+                        }
+                    >
                         <Action
                             icon={CommentIcon}
+                            size={isHead ? 16 : 14}
                             count={comment.replyCount}
                             isActive={false}
                             disabled={!isPressable}
@@ -131,6 +165,7 @@ function CommentCardView({
 
                         <Action
                             icon={LikeIcon}
+                            size={isHead ? 16 : 14}
                             count={comment.likeCount}
                             isActive={comment.isLiked}
                             activeClassName="text-like"
@@ -141,6 +176,7 @@ function CommentCardView({
 
                         <Action
                             icon={BookmarkIcon}
+                            size={isHead ? 16 : 14}
                             isActive={comment.isBookmarked}
                             activeClassName="text-accent"
                             label={t("post.bookmark")}
@@ -149,6 +185,7 @@ function CommentCardView({
 
                         <Action
                             icon={ShareIcon}
+                            size={isHead ? 16 : 14}
                             isActive={false}
                             label={t("post.share")}
                             onPress={() => void handleShare()}
@@ -174,6 +211,7 @@ function Action({
     activeClassName = "text-ink",
     disabled,
     label,
+    size = 14,
     onPress,
 }: {
     icon: LucideIcon;
@@ -182,6 +220,7 @@ function Action({
     activeClassName?: string;
     disabled?: boolean;
     label: string;
+    size?: number;
     onPress: () => void;
 }) {
     const tone = isActive ? activeClassName : "text-ink/40";
@@ -197,7 +236,7 @@ function Action({
             className="flex-row items-center gap-1.5"
         >
             <Icon
-                size={14}
+                size={size}
                 className={tone}
                 fill={isActive ? "currentColor" : "none"}
             />

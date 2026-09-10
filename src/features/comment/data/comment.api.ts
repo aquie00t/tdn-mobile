@@ -89,6 +89,15 @@ export const commentApi = {
     unsaveComment: (commentId: string): Promise<void> =>
         api.delete(`/comments/${commentId}/unsave`, { contentType: false }),
 
+    /**
+     * One comment, read on its own — the head of its own thread.
+     *
+     * `isPublic` for the reason the listings use it: a stale token must not
+     * turn a readable thread into an empty screen.
+     */
+    getCommentById: (commentId: string): Promise<Comment> =>
+        api.get<Comment>(`/comments/${commentId}`, { isPublic: true }),
+
     /** One page of replies to a comment. */
     getReplies: (
         commentId: string,

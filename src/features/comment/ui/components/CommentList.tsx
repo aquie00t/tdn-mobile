@@ -78,10 +78,8 @@ export function CommentList({
     }, [fetchComments]);
 
     const renderItem = useCallback(
-        ({ item }: { item: Comment }) => (
-            <CommentCard comment={item} target={stableTarget} />
-        ),
-        [stableTarget],
+        ({ item }: { item: Comment }) => <CommentCard comment={item} />,
+        [],
     );
 
     const handleCreated = useCallback(

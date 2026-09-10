@@ -1,5 +1,6 @@
 import { Pressable, View } from "react-native";
 import { memo } from "react";
+import { useRouter } from "expo-router";
 
 import { Avatar } from "@shared/ui/Avatar";
 import {
@@ -18,6 +19,7 @@ import { Text } from "@shared/ui/Text";
 import { useI18n } from "@shared/hooks/useI18n";
 import { usePendingMedia } from "../hooks/usePendingMedia";
 import { usePostActions } from "../hooks/usePostActions";
+import { usePostOverlayStore, withOverlay } from "../store/post-overlay.store";
 
 export interface PostCardProps extends Post {
     /**
@@ -27,11 +29,15 @@ export interface PostCardProps extends Post {
      */
     onUpdated?: (post: Post) => void;
     /**
-     * Writes a change into the list that owns this post. Liking and saving are
-     * optimistic and roll back through the same call, so a card without one
-     * has nowhere to put the result — which is why they are not drawn.
+     * Off on the detail screen, where the post is already the whole screen and
+     * there is nowhere to go.
      */
-    onPatch?: (postId: string, changes: Partial<Post>) => void;
+    isPressable?: boolean;
+    /**
+     * Off where something else draws the line below — the detail header puts
+     * the timestamp there, and two rules a few pixels apart read as a mistake.
+     */
+    hasDivider?: boolean;
 }
 
 /**
@@ -72,8 +78,19 @@ function formatPostDate(iso: string, locale: string): string {
  * `mentions` therefore flows through as ordinary text. PR 24 brings the
  * renderer that turns `@ada` into something you can press.
  */
-function PostCardView({ onUpdated, onPatch, ...post }: PostCardProps) {
+function PostCardView({
+    onUpdated,
+    isPressable = true,
+    hasDivider = true,
+    ...serverPost
+}: PostCardProps) {
     const { t, locale } = useI18n();
+    const router = useRouter();
+
+    // Read here rather than passed down, so the same row shows the reader's
+    // own like whether it was made from this card or from the detail screen.
+    const overlays = usePostOverlayStore((s) => s.overlays);
+    const post = withOverlay(serverPost, overlays);
     const date = formatPostDate(post.createdAt, locale);
     const { refresh, isRefreshing } = usePendingMedia({
         postId: post.id,
@@ -81,10 +98,31 @@ function PostCardView({ onUpdated, onPatch, ...post }: PostCardProps) {
         onUpdated,
     });
     const { handleLike, isLikeLoading, handleBookmark, handleShare } =
-        usePostActions({ post, onPatch: onPatch ?? noPatch });
+        usePostActions({ post });
+
+    const Row = isPressable ? Pressable : View;
 
     return (
-        <View className="flex-row gap-3 border-b border-ink/10 px-4 py-4">
+        <Row
+            // Nested pressables: a tap that lands on one of the controls below
+            // is handled there and never reaches this one, which is what lets
+            // the whole row open the post without swallowing a like.
+            {...(isPressable
+                ? {
+                      accessibilityRole: "button" as const,
+                      onPress: () =>
+                          router.push({
+                              pathname: "/post/[id]",
+                              params: { id: post.id },
+                          }),
+                  }
+                : {})}
+            className={
+                hasDivider
+                    ? "flex-row gap-3 border-b border-ink/10 px-4 py-4"
+                    : "flex-row gap-3 px-4 py-4"
+            }
+        >
             {/*
              * `avatarUrl` is NOT NULL in the database and the mapper
              * substitutes a CDN default, so there is nothing to fall back to
@@ -159,7 +197,18 @@ function PostCardView({ onUpdated, onPatch, ...post }: PostCardProps) {
                 )}
 
                 <View className="flex-row items-center gap-5 pt-1">
-                    <Counter icon={CommentIcon} count={post.commentCount} />
+                    <Action
+                        icon={CommentIcon}
+                        count={post.commentCount}
+                        isActive={false}
+                        label={t("post.comments")}
+                        onPress={() =>
+                            router.push({
+                                pathname: "/post/[id]",
+                                params: { id: post.id },
+                            })
+                        }
+                    />
                     <Counter icon={QuoteIcon} count={post.quoteCount} />
 
                     <Action
@@ -167,7 +216,7 @@ function PostCardView({ onUpdated, onPatch, ...post }: PostCardProps) {
                         count={post.likeCount}
                         isActive={post.isLiked}
                         activeClassName="text-like"
-                        disabled={isLikeLoading || !onPatch}
+                        disabled={isLikeLoading}
                         label={t("post.like")}
                         onPress={() => void handleLike()}
                     />
@@ -176,7 +225,6 @@ function PostCardView({ onUpdated, onPatch, ...post }: PostCardProps) {
                         icon={BookmarkIcon}
                         isActive={post.isBookmarked}
                         activeClassName="text-accent"
-                        disabled={!onPatch}
                         label={t("post.bookmark")}
                         onPress={() => void handleBookmark()}
                     />
@@ -189,7 +237,7 @@ function PostCardView({ onUpdated, onPatch, ...post }: PostCardProps) {
                     />
                 </View>
             </View>
-        </View>
+        </Row>
     );
 }
 
@@ -202,9 +250,6 @@ function PostCardView({ onUpdated, onPatch, ...post }: PostCardProps) {
  * every visible row along with it.
  */
 export const PostCard = memo(PostCardView);
-
-/** Somewhere for the hook's writes to go when the card has no owner. */
-const noPatch = () => {};
 
 /**
  * A control, and the number beside it when there is one.

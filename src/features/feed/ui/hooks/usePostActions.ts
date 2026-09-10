@@ -3,30 +3,26 @@ import { useCallback, useState } from "react";
 import { feedApi } from "../../data/feed.api";
 import { getErrorMessage } from "@shared/utils/error-handler";
 import type { Post } from "../../data/feed.types";
-import { postUrl } from "@shared/utils/post-url";
+import { postUrl } from "@shared/utils/web-url";
 import { shareLink } from "@shared/utils/share";
 import { useI18n } from "@shared/hooks/useI18n";
+import { usePostOverlayStore } from "../store/post-overlay.store";
 import { useToastStore } from "@shared/store/toast.store";
 
 export interface UsePostActionsOptions {
     post: Post;
-    /**
-     * Writes a change into the list that owns this post — `patchPost` from
-     * `useFeed`. Both the optimistic move and its rollback go through here.
-     */
-    onPatch: (postId: string, changes: Partial<Post>) => void;
 }
 
 /**
  * Liking, saving and sharing one post.
  *
- * **The state is the list's, not this hook's.** The web keeps `isLiked` in
- * `useState` seeded from props, which works there because a row is a DOM node
- * that stays. A `FlatList` row is unmounted as it leaves the window and
- * mounted again on the way back, so local state would be discarded and
- * re-seeded from a post that has not caught up — the reader would watch their
- * own like undo itself while scrolling. Writing through `onPatch` keeps one
- * copy of the truth, and rolling back is the same call with the old values.
+ * **The state is the overlay store's, not this hook's.** Two reasons, and
+ * either alone would be enough. A `FlatList` row is unmounted as it leaves the
+ * window and mounted again on the way back, so local state would be discarded
+ * and re-seeded from a post that has not caught up — the reader would watch
+ * their own like undo itself while scrolling. And the same post is on two
+ * screens at once: liking it on the detail screen has to show in the feed
+ * behind it. Rolling back is the same call with the old values.
  *
  * `isLikeLoading` stays local on purpose: it guards a double tap and means
  * nothing once the row is gone.
@@ -34,9 +30,10 @@ export interface UsePostActionsOptions {
  * There is no signed-out branch. The web opens its auth modal here; this app
  * is behind a sign-in wall, so there is nobody to open it for.
  */
-export function usePostActions({ post, onPatch }: UsePostActionsOptions) {
+export function usePostActions({ post }: UsePostActionsOptions) {
     const { t } = useI18n();
     const addToast = useToastStore((s) => s.addToast);
+    const patch = usePostOverlayStore((s) => s.patch);
 
     const [isLikeLoading, setIsLikeLoading] = useState(false);
     const [isBookmarkLoading, setIsBookmarkLoading] = useState(false);
@@ -48,7 +45,7 @@ export function usePostActions({ post, onPatch }: UsePostActionsOptions) {
         const previousCount = post.likeCount;
 
         setIsLikeLoading(true);
-        onPatch(post.id, {
+        patch(post.id, {
             isLiked: !wasLiked,
             likeCount: wasLiked ? previousCount - 1 : previousCount + 1,
         });
@@ -57,7 +54,7 @@ export function usePostActions({ post, onPatch }: UsePostActionsOptions) {
             if (wasLiked) await feedApi.unlikePost(post.id);
             else await feedApi.likePost(post.id);
         } catch (err) {
-            onPatch(post.id, {
+            patch(post.id, {
                 isLiked: wasLiked,
                 likeCount: previousCount,
             });
@@ -65,14 +62,7 @@ export function usePostActions({ post, onPatch }: UsePostActionsOptions) {
         } finally {
             setIsLikeLoading(false);
         }
-    }, [
-        post.id,
-        post.isLiked,
-        post.likeCount,
-        isLikeLoading,
-        onPatch,
-        addToast,
-    ]);
+    }, [post.id, post.isLiked, post.likeCount, isLikeLoading, patch, addToast]);
 
     const handleBookmark = useCallback(async () => {
         if (isBookmarkLoading) return;
@@ -80,18 +70,18 @@ export function usePostActions({ post, onPatch }: UsePostActionsOptions) {
         const wasBookmarked = post.isBookmarked;
 
         setIsBookmarkLoading(true);
-        onPatch(post.id, { isBookmarked: !wasBookmarked });
+        patch(post.id, { isBookmarked: !wasBookmarked });
 
         try {
             if (wasBookmarked) await feedApi.unsavePost(post.id);
             else await feedApi.savePost(post.id);
         } catch (err) {
-            onPatch(post.id, { isBookmarked: wasBookmarked });
+            patch(post.id, { isBookmarked: wasBookmarked });
             addToast({ type: "error", message: getErrorMessage(err) });
         } finally {
             setIsBookmarkLoading(false);
         }
-    }, [post.id, post.isBookmarked, isBookmarkLoading, onPatch, addToast]);
+    }, [post.id, post.isBookmarked, isBookmarkLoading, patch, addToast]);
 
     /**
      * Only a failure is reported. A share that went out needs no confirmation

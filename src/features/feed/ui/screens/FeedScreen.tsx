@@ -1,5 +1,6 @@
-import { FlatList, View } from "react-native";
+import { FlatList, Pressable, View } from "react-native";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 
 import { Button } from "@shared/ui/Button";
 import { EmptyState } from "@shared/ui/EmptyState";
@@ -8,6 +9,7 @@ import { FeedTypeStrip } from "../components/FeedTypeStrip";
 import { PostCard } from "../components/PostCard";
 import type { Post, PostType } from "../../data/feed.types";
 import { Screen } from "@shared/ui/Screen";
+import { CreateIcon } from "@shared/ui/icons/lucide";
 import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
 import { useFeed } from "../hooks/useFeed";
@@ -21,6 +23,7 @@ const INITIAL_ROWS = 8;
 
 export function FeedScreen() {
     const { t } = useI18n();
+    const router = useRouter();
     const [type, setType] = useState<PostType>("COMMUNITY");
     const {
         posts,
@@ -107,6 +110,31 @@ export function FeedScreen() {
                         />
                     }
                 />
+            )}
+
+            {/*
+             * Only on Community, and not to keep the screen tidy: `TECH_NEWS`
+             * and `SYSTEM_UPDATE` are refused for anyone but a bot account, so
+             * a post written from either of those tabs would be a Community
+             * post the reader then cannot find in the list they wrote it from.
+             * The web hides its composer on the same two tabs for the same
+             * reason.
+             */}
+            {type === "COMMUNITY" && (
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("postBox.post")}
+                    onPress={() => router.push("/compose")}
+                    className="absolute bottom-6 right-5 h-14 w-14 items-center justify-center rounded-full bg-ink active:bg-ink-hover"
+                    style={{
+                        // The one shadow in the app. A control that floats
+                        // over the list has to say it is above it, and on a
+                        // dark ground a border alone does not.
+                        elevation: 6,
+                    }}
+                >
+                    <CreateIcon size={26} className="text-ground" />
+                </Pressable>
             )}
         </Screen>
     );

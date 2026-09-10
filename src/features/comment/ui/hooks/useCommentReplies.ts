@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
 import { COMMENT_PAGE_LIMIT, commentApi } from "../../data/comment.api";
-import { appendNewOnly } from "../../domain/append-new-only";
+import { appendNewOnly } from "@shared/utils/append-new-only";
 import type { Comment } from "../../data/comment.types";
 import { getErrorMessage } from "@shared/utils/error-handler";
 

@@ -1,5 +1,5 @@
 import { api } from "@core/api/client";
-import type { GetPostsParams, Post } from "./feed.types";
+import type { GetPostsParams, Post, PostType } from "./feed.types";
 
 /** What one page asks for. The API caps it well above this. */
 export const PAGE_LIMIT = 20;
@@ -63,6 +63,56 @@ export const feedApi = {
      */
     getPostById: (postId: string): Promise<Post> =>
         api.get<Post>(`/posts/${postId}`, { isPublic: true }),
+
+    /**
+     * Writes a post.
+     *
+     * `quotedPostId` is omitted rather than sent as `undefined`, so an
+     * ordinary post posts exactly the body it used to and the server's rule —
+     * empty content is allowed only on a quote — is never tripped by a key
+     * that is present but empty. Nothing passes it yet; quoting is PR 12.
+     *
+     * `idempotencyKey` is the caller's. This is one of the eight routes that
+     * accept one, and it is what closes the worst window in the flow above it:
+     * once the media has uploaded, a create that times out leaves nobody able
+     * to say whether the post exists. Retried under the same key, the API
+     * answers from the first attempt instead of writing a second post — and
+     * re-sending the same `mediaUrls` under a fresh key would be
+     * `MediaNotOwnedError`, because an upload belongs to one piece of content.
+     */
+    createPost: (
+        content: string,
+        type: PostType,
+        mediaUrls: string[],
+        idempotencyKey: string,
+        quotedPostId?: string,
+    ): Promise<Post> =>
+        api.post<Post>(
+            "/posts",
+            {
+                content,
+                type,
+                mediaUrls,
+                ...(quotedPostId ? { quotedPostId } : {}),
+            },
+            { idempotencyKey },
+        ),
+
+    /**
+     * Uploads up to four files and answers their URLs.
+     *
+     * `contentType: false` because the body is `FormData`: setting the header
+     * ourselves would write `multipart/form-data` without the boundary the
+     * runtime generates, and the server would fail to parse a body it was
+     * handed correctly.
+     *
+     * The upload is where moderation happens, so this is the call
+     * `withModerationRetry` wraps and whose failures `clearsSelection` reads.
+     */
+    uploadMedia: (body: FormData): Promise<{ mediaUrls: string[] }> =>
+        api.post<{ mediaUrls: string[] }>("/media", body, {
+            contentType: false,
+        }),
 
     /*
      * Liking and saving are four routes rather than two toggles, and the pairs

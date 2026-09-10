@@ -274,3 +274,71 @@ describe("like and save", () => {
         expect(auth).toBe("Bearer fresh");
     });
 });
+
+describe("createPost", () => {
+    it("carries the caller's idempotency key", async () => {
+        await setTokens({ accessToken: "fresh" });
+        let key: string | null = null;
+
+        server.use(
+            http.post(`${BASE}/posts`, ({ request }) => {
+                key = request.headers.get("Idempotency-Key");
+                return ok({ id: "p1" });
+            }),
+        );
+
+        await feedApi.createPost("hello", "COMMUNITY", [], "key-1");
+
+        // The widest window in the composer: the media has uploaded and the
+        // create times out. Under the same key the API answers from the first
+        // attempt rather than writing a second post.
+        expect(key).toBe("key-1");
+    });
+
+    it("omits quotedPostId entirely on an ordinary post", async () => {
+        await setTokens({ accessToken: "fresh" });
+        let body: Record<string, unknown> = {};
+
+        server.use(
+            http.post(`${BASE}/posts`, async ({ request }) => {
+                body = (await request.json()) as Record<string, unknown>;
+                return ok({ id: "p1" });
+            }),
+        );
+
+        await feedApi.createPost("hello", "COMMUNITY", ["u1"], "key-1");
+
+        // Absent, not `null`. The server allows empty content only on a quote,
+        // and a key that is present but empty is what trips that rule.
+        expect("quotedPostId" in body).toBe(false);
+        expect(body).toEqual({
+            content: "hello",
+            type: "COMMUNITY",
+            mediaUrls: ["u1"],
+        });
+    });
+});
+
+describe("uploadMedia", () => {
+    it("lets the runtime write the multipart boundary", async () => {
+        await setTokens({ accessToken: "fresh" });
+        let contentType: string | null = null;
+
+        server.use(
+            http.post(`${BASE}/media`, ({ request }) => {
+                contentType = request.headers.get("Content-Type");
+                return ok({ mediaUrls: ["u1"] });
+            }),
+        );
+
+        const form = new FormData();
+        form.append("files", "x");
+        await feedApi.uploadMedia(form);
+
+        // `contentType: false` on the client. Setting the header ourselves
+        // would write `multipart/form-data` with no boundary, and the server
+        // would fail to parse a body it was handed correctly.
+        expect(contentType).toContain("multipart/form-data");
+        expect(contentType).toContain("boundary=");
+    });
+});

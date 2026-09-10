@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { PAGE_LIMIT, feedApi } from "../../data/feed.api";
 import { assertList } from "@shared/utils/assert-list";
@@ -9,6 +9,8 @@ import type {
     PostType,
 } from "../../data/feed.types";
 import { useI18n } from "@shared/hooks/useI18n";
+import { appendNewOnly } from "@shared/utils/append-new-only";
+import { usePostInboxStore } from "../store/post-inbox.store";
 import { usePostOverlayStore } from "../store/post-overlay.store";
 
 /**
@@ -115,6 +117,10 @@ export function useFeed(
                 // the reader's own pending changes stop being an improvement
                 // on it and start being a way to freeze it.
                 usePostOverlayStore.getState().clear();
+                // The server is holding anything written on this device by
+                // now, so a second copy at the top would be the same post
+                // twice.
+                usePostInboxStore.getState().clear();
             } catch {
                 if (requestId !== requestIdRef.current) return;
                 setError(t("postList.error"));
@@ -169,6 +175,19 @@ export function useFeed(
     }, []);
 
     /**
+     * What the composer left behind, on top of what the server sent.
+     *
+     * There is a window where both hold the same post — the composer's answer
+     * and the next page of the listing — and `appendNewOnly` is what stops it
+     * being drawn twice.
+     */
+    const created = usePostInboxStore((s) => s.created);
+    const visiblePosts = useMemo(
+        () => (created.length === 0 ? posts : appendNewOnly(created, posts)),
+        [created, posts],
+    );
+
+    /**
      * Swaps one row for a freshly read copy, leaving the rest of the list and
      * the reader's scroll position where they are. Used when a post's pending
      * video resolves: re-fetching the feed would cost every other row and,
@@ -194,7 +213,7 @@ export function useFeed(
     }, [loadMore]);
 
     return {
-        posts,
+        posts: visiblePosts,
         isLoading,
         isRefreshing,
         isLoadingMore,

@@ -7,7 +7,7 @@ interface Identified {
  * Appends a page while dropping anything already on screen.
  *
  * These endpoints page by a page *number*, and the lists they feed grow at the
- * head: posting a comment puts it on top immediately. That shifts every server
+ * head: posting a comment — or a post — puts it on top immediately. That shifts every server
  * row down by one, so page 2 comes back overlapping page 1 by exactly the
  * number of comments added since page 1 was read — and without this, the
  * reader sees the last few comments of the first page repeated under it.

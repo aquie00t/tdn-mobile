@@ -41,6 +41,7 @@
         --color-danger: 185 28 28;
         --color-success: 21 128 61;
         --color-accent: 37 99 235;
+        --color-like: 219 39 119;
 
         /* Do not swap — see tailwind.config.js. */
         --color-scrim: 0 0 0;
@@ -58,6 +59,7 @@
         --color-danger: 248 113 113;
         --color-success: 74 222 128;
         --color-accent: 96 165 250;
+        --color-like: 236 72 153;
 
         --color-scrim: 0 0 0;
         --color-on-fill: 255 255 255;

@@ -20,6 +20,12 @@
  * hundred call sites was the only reason they are not. Nothing here needs
  * migrating, so `danger`, `success` and `accent` are roles from the start,
  * carrying the web's values on both sides.
+ *
+ * `like` is the one role named for a feature rather than a meaning, and it is
+ * the exception that proves the rest: the web tints a liked heart `pink-500`
+ * and that pink means exactly one thing in the product. The alternatives were
+ * worse — `danger` is the only red here and it reads as "this will destroy
+ * something", which is not what a heart is saying.
  */
 
 /** @type {import('tailwindcss').Config} */
@@ -45,6 +51,7 @@ module.exports = {
                 danger: "rgb(var(--color-danger) / <alpha-value>)",
                 success: "rgb(var(--color-success) / <alpha-value>)",
                 accent: "rgb(var(--color-accent) / <alpha-value>)",
+                like: "rgb(var(--color-like) / <alpha-value>)",
                 scrim: "rgb(var(--color-scrim) / <alpha-value>)",
                 "on-fill": "rgb(var(--color-on-fill) / <alpha-value>)",
             },

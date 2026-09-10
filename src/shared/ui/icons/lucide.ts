@@ -1,5 +1,6 @@
 import {
     Bell,
+    Bookmark,
     CircleUser,
     Clock,
     Compass,
@@ -10,6 +11,7 @@ import {
     MessageCircle,
     Repeat2,
     RefreshCw,
+    Share2,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { cssInterop } from "nativewind";
@@ -49,6 +51,10 @@ export const ProfileIcon = themed(CircleUser);
 export const HiddenIcon = themed(EyeOff);
 export const PendingIcon = themed(Clock);
 export const RefreshIcon = themed(RefreshCw);
+
+/** A post's actions, and the counters beside them. */
+export const BookmarkIcon = themed(Bookmark);
+export const ShareIcon = themed(Share2);
 
 /** A post's three counters, in the order the web's card draws them. */
 export const CommentIcon = themed(MessageCircle);

@@ -36,6 +36,7 @@ export function FeedScreen() {
         retry,
         retryLoadMore,
         replacePost,
+        patchPost,
     } = useFeed();
 
     // Selecting a tab re-runs this, and `fetchPosts` stamps each request so a
@@ -49,9 +50,9 @@ export function FeedScreen() {
     // for the same reason, which is what keeps this one stable in turn.
     const renderItem = useCallback(
         ({ item }: { item: Post }) => (
-            <PostCard {...item} onUpdated={replacePost} />
+            <PostCard {...item} onUpdated={replacePost} onPatch={patchPost} />
         ),
-        [replacePost],
+        [replacePost, patchPost],
     );
 
     return (

@@ -175,6 +175,26 @@ export function useFeed(
         );
     }, []);
 
+    /**
+     * Applies a partial change to one row, in place.
+     *
+     * This is where an optimistic like or bookmark is written, and it has to
+     * be the list rather than the card. A `FlatList` unmounts rows as they
+     * leave its window and mounts them again on the way back, so a card
+     * holding its own `isLiked` loses it on the way past and re-seeds from the
+     * stale post — the heart empties itself while the reader scrolls. The web
+     * never meets this, because its rows are DOM nodes that stay.
+     *
+     * Rolling back is the same call with the previous values.
+     */
+    const patchPost = useCallback((postId: string, changes: Partial<Post>) => {
+        setPosts((prev) =>
+            prev.map((post) =>
+                post.id === postId ? { ...post, ...changes } : post,
+            ),
+        );
+    }, []);
+
     const removePost = useCallback((postId: string) => {
         setPosts((prev) => prev.filter((post) => post.id !== postId));
     }, []);
@@ -201,10 +221,9 @@ export function useFeed(
         loadMore,
         retry,
         retryLoadMore,
-        // No caller until the PRs that need them: `addPost` when composing
-        // lands (PR 11), `replacePost` when a pending video resolves (PR 8),
-        // `removePost` with deletion. Part of the hook as ported; splitting it
-        // across three PRs would mean revisiting this file three times.
+        // `addPost` waits for composing (PR 11) and `removePost` for
+        // deletion; the other two are in use.
+        patchPost,
         addPost,
         replacePost,
         removePost,

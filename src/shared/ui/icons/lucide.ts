@@ -1,4 +1,13 @@
-import { Bell, CircleUser, Compass, Home, Mail } from "lucide-react-native";
+import {
+    Bell,
+    CircleUser,
+    Compass,
+    Heart,
+    Home,
+    Mail,
+    MessageCircle,
+    Repeat2,
+} from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { cssInterop } from "nativewind";
 
@@ -32,3 +41,8 @@ export const ExploreIcon = themed(Compass);
 export const NotificationsIcon = themed(Bell);
 export const MessagesIcon = themed(Mail);
 export const ProfileIcon = themed(CircleUser);
+
+/** A post's three counters, in the order the web's card draws them. */
+export const CommentIcon = themed(MessageCircle);
+export const LikeIcon = themed(Heart);
+export const QuoteIcon = themed(Repeat2);

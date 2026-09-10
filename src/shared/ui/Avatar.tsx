@@ -38,6 +38,10 @@ export function Avatar({ uri, size = 32, className }: AvatarProps) {
                 // The ground shows through while it loads, which on a round
                 // 22px mark reads as the avatar simply arriving.
                 transition={150}
+                // Rows are recycled as a list scrolls, and without this the
+                // view keeps the previous author's face until the next one
+                // decodes — the wrong picture beside the right name.
+                recyclingKey={uri}
             />
         </View>
     );

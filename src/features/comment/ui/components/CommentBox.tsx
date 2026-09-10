@@ -6,6 +6,8 @@ import { COMMENT_MAX_LENGTH } from "../../data/comment.types";
 import type { Comment, CommentTarget } from "../../data/comment.types";
 import { commentApi } from "../../data/comment.api";
 import { getErrorMessage } from "@shared/utils/error-handler";
+import { MediaPicker } from "@shared/ui/MediaPicker";
+import { useMediaSelection } from "@shared/hooks/useMediaSelection";
 import { newIdempotencyKey } from "@core/api/idempotency";
 import { ProfileIcon, SendIcon } from "@shared/ui/icons/lucide";
 import { Spinner } from "@shared/ui/Spinner";
@@ -73,9 +75,14 @@ export function CommentBox({
      */
     const idempotencyKey = useRef<string | null>(null);
 
+    const media = useMediaSelection();
+
     const trimmed = content.trim();
     const isTooLong = trimmed.length > COMMENT_MAX_LENGTH;
-    const canSubmit = trimmed.length > 0 && !isTooLong && !isSubmitting;
+    const canSubmit =
+        (trimmed.length > 0 || media.assets.length > 0) &&
+        !isTooLong &&
+        !isSubmitting;
 
     const handleSubmit = async () => {
         if (!canSubmit) return;
@@ -84,20 +91,24 @@ export function CommentBox({
         setIsSubmitting(true);
 
         try {
+            const mediaUrls = await media.upload();
+
             const comment = await commentApi.createComment(
                 target,
-                { content: trimmed, parentId },
+                { content: trimmed, parentId, mediaUrls },
                 idempotencyKey.current,
             );
 
             idempotencyKey.current = null;
             setContent("");
             setInputHeight(0);
+            media.clear();
             onCommentCreated(comment);
         } catch (err) {
             // The key is deliberately kept. A failure is exactly the case the
             // key exists for, and minting a new one on the retry would post
             // the comment twice if the first request had in fact arrived.
+            media.handleFailure(err);
             addToast({ type: "error", message: getErrorMessage(err) });
         } finally {
             setIsSubmitting(false);
@@ -174,6 +185,23 @@ export function CommentBox({
                         />
                     )}
                 </Pressable>
+            </View>
+
+            {/*
+             * Always drawn, not only once something is picked — otherwise
+             * there is no way to pick the first file. Indented past the
+             * avatar so the controls line up with what is being written.
+             */}
+            <View className="pl-10 pt-1">
+                <MediaPicker
+                    assets={media.assets}
+                    onPickFromLibrary={() => void media.pickFromLibrary()}
+                    onTakePhoto={() => void media.takePhoto()}
+                    onRemove={media.removeAsset}
+                    remainingSlots={media.remainingSlots}
+                    max={media.max}
+                    disabled={isSubmitting}
+                />
             </View>
 
             {trimmed.length > COUNTER_THRESHOLD && (

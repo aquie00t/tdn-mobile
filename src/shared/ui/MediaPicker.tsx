@@ -1,10 +1,10 @@
 import { Image } from "expo-image";
 import { Pressable, View } from "react-native";
 
-import { AddMediaIcon, CameraIcon, CloseIcon } from "@shared/ui/icons/lucide";
-import type { PickedAsset } from "@shared/utils/asset-to-form";
-import { Text } from "@shared/ui/Text";
-import { useI18n } from "@shared/hooks/useI18n";
+import { AddMediaIcon, CameraIcon, CloseIcon } from "./icons/lucide";
+import type { PickedAsset } from "../utils/asset-to-form";
+import { Text } from "./Text";
+import { useI18n } from "../hooks/useI18n";
 
 export interface MediaPickerProps {
     assets: PickedAsset[];

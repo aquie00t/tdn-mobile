@@ -5,22 +5,22 @@ import {
     TextInput,
     View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useEffect } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { Avatar } from "@shared/ui/Avatar";
 import { Button } from "@shared/ui/Button";
-import { MediaPicker } from "../components/MediaPicker";
+import { MediaPicker } from "@shared/ui/MediaPicker";
+import { QuotedPostCard } from "../components/QuotedPostCard";
 import { ProfileIcon } from "@shared/ui/icons/lucide";
 import { Screen } from "@shared/ui/Screen";
 import { ScreenHeader } from "@shared/layout/ScreenHeader";
 import { Text } from "@shared/ui/Text";
-import {
-    MAX_FILES,
-    POST_MAX_LENGTH,
-    usePostComposer,
-} from "../hooks/usePostComposer";
+import { POST_MAX_LENGTH, usePostComposer } from "../hooks/usePostComposer";
 import { useI18n } from "@shared/hooks/useI18n";
+import { usePost } from "../hooks/usePost";
 import { usePostInboxStore } from "../store/post-inbox.store";
+import { useQuoteDraftStore } from "../store/quote-draft.store";
 import { useSessionStore } from "@core/session/session.store";
 
 /** The counter appears only once the cap is close enough to matter. */
@@ -51,21 +51,56 @@ export function ComposeScreen() {
      * left where it can find it rather than handed over. The web's inline box
      * can simply call `addPost`; a composer that dismisses itself cannot.
      */
-    const composer = usePostComposer((post) => {
-        addToInbox(post);
-        router.back();
+    /**
+     * `quoteId` turns this screen into the quote composer, and that is the
+     * whole of the difference: the preview appears, the picker goes, and an
+     * empty body becomes valid because the API reads a `quotedPostId` with no
+     * content as a plain repost.
+     *
+     * The web opens a modal for this. A second composer would mean a second
+     * copy of the idempotency key, the counter, the keyboard handling and the
+     * submit button — and the `Modal` primitive is still unwritten, which PR 3
+     * asked for it to stay until something genuinely needed one.
+     */
+    const { quoteId } = useLocalSearchParams<{ quoteId?: string }>();
+    const draft = useQuoteDraftStore((s) => s.quoted);
+    const clearDraft = useQuoteDraftStore((s) => s.clear);
+    const { post: fetched, fetchPost } = usePost(quoteId ?? "");
+
+    // What the card handed over, or what a cold entry has to read for itself.
+    const quoted = draft?.id === quoteId ? draft : fetched;
+
+    useEffect(() => {
+        // Only when nothing was handed over — a link opened from outside the
+        // app. `usePost` does not fetch on its own, which is what makes it
+        // safe to hold unconditionally.
+        if (quoteId && !draft) void fetchPost();
+    }, [quoteId, draft, fetchPost]);
+
+    useEffect(() => () => clearDraft(), [clearDraft]);
+
+    const composer = usePostComposer({
+        quotedPostId: quoteId,
+        onPosted: (post) => {
+            addToInbox(post);
+            router.back();
+        },
     });
 
-    const label = composer.isUploading
+    const label = composer.media.isUploading
         ? t("postBox.uploading")
         : composer.isSubmitting
-          ? t("postBox.posting")
-          : t("postBox.post");
+          ? composer.isQuote
+              ? t("quote.posting")
+              : t("postBox.posting")
+          : composer.isQuote
+            ? t("quote.submit")
+            : t("postBox.post");
 
     return (
         <Screen edges={{ top: true, bottom: true }}>
             <ScreenHeader
-                title={t("postBox.post")}
+                title={composer.isQuote ? t("quote.title") : t("postBox.post")}
                 right={
                     <Button
                         label={label}
@@ -102,7 +137,11 @@ export function ComposeScreen() {
                         <TextInput
                             value={composer.content}
                             onChangeText={composer.setContent}
-                            placeholder={t("postBox.placeholder")}
+                            placeholder={
+                                composer.isQuote
+                                    ? t("quote.placeholder")
+                                    : t("postBox.placeholder")
+                            }
                             multiline
                             autoFocus
                             // No `maxLength`. A hard stop swallows a paste
@@ -114,17 +153,29 @@ export function ComposeScreen() {
                         />
                     </View>
 
-                    <MediaPicker
-                        assets={composer.assets}
-                        onPickFromLibrary={() =>
-                            void composer.pickFromLibrary()
-                        }
-                        onTakePhoto={() => void composer.takePhoto()}
-                        onRemove={composer.removeAsset}
-                        remainingSlots={composer.remainingSlots}
-                        max={MAX_FILES}
-                        disabled={composer.isSubmitting}
-                    />
+                    {/*
+                     * Rendered from the full post the screen fetched: a `Post`
+                     * carries everything `QuotedPost` needs, including the
+                     * flags the embedded card must read from the quoted post
+                     * rather than from the quote.
+                     */}
+                    {composer.isQuote && quoted && (
+                        <QuotedPostCard post={quoted} isPreview />
+                    )}
+
+                    {!composer.isQuote && (
+                        <MediaPicker
+                            assets={composer.media.assets}
+                            onPickFromLibrary={() =>
+                                void composer.media.pickFromLibrary()
+                            }
+                            onTakePhoto={() => void composer.media.takePhoto()}
+                            onRemove={composer.media.removeAsset}
+                            remainingSlots={composer.media.remainingSlots}
+                            max={composer.media.max}
+                            disabled={composer.isSubmitting}
+                        />
+                    )}
 
                     {composer.content.trim().length > COUNTER_THRESHOLD && (
                         <Text

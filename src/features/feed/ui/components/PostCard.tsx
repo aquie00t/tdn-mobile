@@ -14,12 +14,15 @@ import type { LucideIcon } from "lucide-react-native";
 import { PendingMedia } from "@shared/ui/PendingMedia";
 import type { Post } from "../../data/feed.types";
 import { PostMedia } from "@shared/ui/PostMedia";
+import { RichText } from "@shared/ui/RichText";
+import { QuotedPostCard } from "./QuotedPostCard";
 import { SensitiveMedia } from "@shared/ui/SensitiveMedia";
 import { Text } from "@shared/ui/Text";
 import { useI18n } from "@shared/hooks/useI18n";
 import { usePendingMedia } from "../hooks/usePendingMedia";
 import { usePostActions } from "../hooks/usePostActions";
 import { usePostOverlayStore, withOverlay } from "../store/post-overlay.store";
+import { useQuoteDraftStore } from "../store/quote-draft.store";
 
 export interface PostCardProps extends Post {
     /**
@@ -91,6 +94,19 @@ function PostCardView({
     // own like whether it was made from this card or from the detail screen.
     const overlays = usePostOverlayStore((s) => s.overlays);
     const post = withOverlay(serverPost, overlays);
+    const setQuoteDraft = useQuoteDraftStore((s) => s.set);
+
+    /**
+     * The post a bare repost carries, or `null` when this is not one.
+     *
+     * A quote with nothing added is a repost — the API allows the empty
+     * content only because there is a `quotedPostId`, so the two conditions
+     * together are the whole definition, and it is the one the web's card uses
+     * too. Held as the post rather than as a boolean so the two places that
+     * need it can narrow instead of asserting.
+     */
+    const repostedOriginal =
+        post.content.trim().length === 0 ? post.quotedPost : null;
     const date = formatPostDate(post.createdAt, locale);
     const { refresh, isRefreshing } = usePendingMedia({
         postId: post.id,
@@ -174,7 +190,16 @@ function PostCardView({
                     </View>
                 </View>
 
-                {post.content.length > 0 && <Text>{post.content}</Text>}
+                {repostedOriginal ? (
+                    <View className="flex-row items-center gap-1.5">
+                        <QuoteIcon size={14} className="text-ink/40" />
+                        <Text size="small" tone="subtle">
+                            {t("post.reposted")}
+                        </Text>
+                    </View>
+                ) : (
+                    post.content.length > 0 && <RichText text={post.content} />
+                )}
 
                 {/*
                  * Both, never one or the other by construction: a post whose
@@ -196,6 +221,14 @@ function PostCardView({
                     </SensitiveMedia>
                 )}
 
+                {/*
+                 * A quote is a post that happens to carry another one, which
+                 * is why nothing above this line has a special case for it —
+                 * lists, actions and counters all treat it as an ordinary
+                 * post. The card carries its own flags; see `QuotedPostCard`.
+                 */}
+                {post.quotedPost && <QuotedPostCard post={post.quotedPost} />}
+
                 <View className="flex-row items-center gap-5 pt-1">
                     <Action
                         icon={CommentIcon}
@@ -209,7 +242,46 @@ function PostCardView({
                             })
                         }
                     />
-                    <Counter icon={QuoteIcon} count={post.quoteCount} />
+                    {/*
+                     * The repeat glyph starts a quote rather than listing the
+                     * existing ones — the composer it opens takes an empty
+                     * body as a plain repost, so one control covers both
+                     * without an action sheet. Reading who has quoted a post
+                     * is a list of its own and has no screen yet.
+                     */}
+                    <Action
+                        icon={QuoteIcon}
+                        count={post.quoteCount}
+                        isActive={false}
+                        label={t("post.quote")}
+                        onPress={() => {
+                            /*
+                             * A bare repost is quoted *through*: what gets
+                             * embedded is the post it carries, not the repost
+                             * itself.
+                             *
+                             * The web quotes the outer post always, and its
+                             * comment says so deliberately — which is right
+                             * for a quote that added something, and wrong for
+                             * one that added nothing. Embedding an empty body
+                             * produces a card with an author line and nothing
+                             * under it, which is what this looked like.
+                             *
+                             * `quotedPost` never nests, so the target is
+                             * always one hop away: there is no chain to walk.
+                             */
+                            const target = repostedOriginal ?? post;
+
+                            // Handed over rather than re-read: the composer
+                            // shows the preview on its first frame instead of
+                            // after a request.
+                            setQuoteDraft(target);
+                            router.push({
+                                pathname: "/compose",
+                                params: { quoteId: target.id },
+                            });
+                        }}
+                    />
 
                     <Action
                         icon={LikeIcon}
@@ -309,16 +381,5 @@ function Action({
                 </Text>
             )}
         </Pressable>
-    );
-}
-
-function Counter({ icon: Icon, count }: { icon: LucideIcon; count: number }) {
-    return (
-        <View className="flex-row items-center gap-1.5">
-            <Icon size={16} className="text-ink/40" />
-            <Text size="small" tone="subtle">
-                {count}
-            </Text>
-        </View>
     );
 }

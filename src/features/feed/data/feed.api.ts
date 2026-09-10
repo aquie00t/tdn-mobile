@@ -98,22 +98,6 @@ export const feedApi = {
             { idempotencyKey },
         ),
 
-    /**
-     * Uploads up to four files and answers their URLs.
-     *
-     * `contentType: false` because the body is `FormData`: setting the header
-     * ourselves would write `multipart/form-data` without the boundary the
-     * runtime generates, and the server would fail to parse a body it was
-     * handed correctly.
-     *
-     * The upload is where moderation happens, so this is the call
-     * `withModerationRetry` wraps and whose failures `clearsSelection` reads.
-     */
-    uploadMedia: (body: FormData): Promise<{ mediaUrls: string[] }> =>
-        api.post<{ mediaUrls: string[] }>("/media", body, {
-            contentType: false,
-        }),
-
     /*
      * Liking and saving are four routes rather than two toggles, and the pairs
      * are **not** symmetric: the verb changes *and* so does the last path

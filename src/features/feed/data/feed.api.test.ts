@@ -319,26 +319,44 @@ describe("createPost", () => {
     });
 });
 
-describe("uploadMedia", () => {
-    it("lets the runtime write the multipart boundary", async () => {
+describe("quoting", () => {
+    it("sends quotedPostId when there is one", async () => {
         await setTokens({ accessToken: "fresh" });
-        let contentType: string | null = null;
+        let body: Record<string, unknown> = {};
 
         server.use(
-            http.post(`${BASE}/media`, ({ request }) => {
-                contentType = request.headers.get("Content-Type");
-                return ok({ mediaUrls: ["u1"] });
+            http.post(`${BASE}/posts`, async ({ request }) => {
+                body = (await request.json()) as Record<string, unknown>;
+                return ok({ id: "p2" });
             }),
         );
 
-        const form = new FormData();
-        form.append("files", "x");
-        await feedApi.uploadMedia(form);
+        await feedApi.createPost("look", "COMMUNITY", [], "key-1", "p1");
 
-        // `contentType: false` on the client. Setting the header ourselves
-        // would write `multipart/form-data` with no boundary, and the server
-        // would fail to parse a body it was handed correctly.
-        expect(contentType).toContain("multipart/form-data");
-        expect(contentType).toContain("boundary=");
+        expect(body.quotedPostId).toBe("p1");
+    });
+
+    it("allows an empty body alongside one", async () => {
+        // The API's plain repost: a `quotedPostId` with no content. Only the
+        // presence of the quote makes the empty content legal, which is why
+        // the composer relaxes its own rule the same way.
+        await setTokens({ accessToken: "fresh" });
+        let body: Record<string, unknown> = {};
+
+        server.use(
+            http.post(`${BASE}/posts`, async ({ request }) => {
+                body = (await request.json()) as Record<string, unknown>;
+                return ok({ id: "p2" });
+            }),
+        );
+
+        await feedApi.createPost("", "COMMUNITY", [], "key-1", "p1");
+
+        expect(body).toEqual({
+            content: "",
+            type: "COMMUNITY",
+            mediaUrls: [],
+            quotedPostId: "p1",
+        });
     });
 });

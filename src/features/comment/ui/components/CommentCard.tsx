@@ -11,6 +11,7 @@ import {
 } from "@shared/ui/icons/lucide";
 import type { Comment } from "../../data/comment.types";
 import type { LucideIcon } from "lucide-react-native";
+import { RichText } from "@shared/ui/RichText";
 import { Text } from "@shared/ui/Text";
 import { useCommentActions } from "../hooks/useCommentActions";
 import { useCommentOverlayStore } from "../store/comment-overlay.store";
@@ -142,9 +143,10 @@ function CommentCardView({
                         )}
                     </View>
 
-                    <Text size={isHead ? "body" : "small"}>
-                        {comment.content}
-                    </Text>
+                    <RichText
+                        text={comment.content}
+                        size={isHead ? "body" : "small"}
+                    />
 
                     <View
                         className={

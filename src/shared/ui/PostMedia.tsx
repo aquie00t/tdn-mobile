@@ -6,6 +6,13 @@ import { getSafeMediaUri, isVideoUri } from "../utils/media-uri";
 
 export interface PostMediaProps {
     uris: string[];
+    /**
+     * Set inside a quoted card, which is a link to the original rather than
+     * something to operate. A video there loses its controls: play, seek and
+     * fullscreen would put their own tap targets over a card whose whole job
+     * is to be pressed.
+     */
+    isEmbedded?: boolean;
 }
 
 const FILL = { width: "100%", height: "100%" } as const;
@@ -19,7 +26,7 @@ const FILL = { width: "100%", height: "100%" } as const;
  * width, a gap is subtracted from the row *after* the halves are computed, so
  * the second tile wraps to its own line and the grid becomes a column.
  */
-export function PostMedia({ uris }: PostMediaProps) {
+export function PostMedia({ uris, isEmbedded = false }: PostMediaProps) {
     const safe = uris
         .map((uri) => getSafeMediaUri(uri))
         .filter((uri): uri is string => uri !== null);
@@ -40,7 +47,7 @@ export function PostMedia({ uris }: PostMediaProps) {
                     }
                 >
                     {isVideoUri(uri) ? (
-                        <PostVideo uri={uri} />
+                        <PostVideo uri={uri} isEmbedded={isEmbedded} />
                     ) : (
                         <Image
                             source={{ uri }}
@@ -66,7 +73,7 @@ export function PostMedia({ uris }: PostMediaProps) {
  * data, and it is not what the web does either — it renders a `<video controls>`
  * and waits to be asked.
  */
-function PostVideo({ uri }: { uri: string }) {
+function PostVideo({ uri, isEmbedded }: { uri: string; isEmbedded: boolean }) {
     const player = useVideoPlayer(uri, (instance) => {
         instance.loop = false;
         // Muted so a video that is somehow started cannot talk over whatever
@@ -79,12 +86,12 @@ function PostVideo({ uri }: { uri: string }) {
             player={player}
             style={FILL}
             contentFit="cover"
-            nativeControls
+            nativeControls={!isEmbedded}
             // Fullscreen is the only way to watch a clip that is 16:9 inside a
             // half-width tile. Picture-in-picture is not: it would leave a
             // video floating over the app after the reader has scrolled past
             // the post it belongs to.
-            fullscreenOptions={{ enable: true }}
+            fullscreenOptions={{ enable: !isEmbedded }}
             allowsPictureInPicture={false}
         />
     );

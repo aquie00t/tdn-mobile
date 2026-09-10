@@ -177,10 +177,34 @@ sign-in.
 ### PR 6 — App shell and tab navigation
 
 Five tabs mirroring `BottomNav`: Home, Explore, Notifications, Messages,
-Profile. Unread badges wired to the stores that already exist. The guard that
-turns a mutation by a signed-out reader into the sign-in sheet.
+Profile.
 
-**Not in it:** tab contents beyond placeholders.
+The **headless** tabs from `expo-router/ui`, not the configured navigator. The
+configured one is styled with colour values — `tabBarActiveTintColor` and
+friends — and every colour here is a role in `global.css`; handing them over in
+JavaScript would mean writing each one down again in hex, where no theme could
+reach it. Drawn as ordinary views, every colour stays a class, and the two
+things this bar does that a configured one cannot come for free: a badge over
+an icon, and somebody's own face in place of the profile glyph.
+
+The badge is drawn but nothing fills it. Where it sits is a decision about this
+bar; the counts arrive with the notification store in PR 15 and the message
+store in PR 25, which should be wiring a number up rather than rearranging a
+tab.
+
+Two lines this plan used to carry are gone. **The sign-in sheet guard** has
+nothing left to guard: PR 4 put the app behind a sign-in wall, so there is no
+signed-out reader to intercept. And the badges cannot be *"wired to the stores
+that already exist"* — neither store exists on this client yet.
+
+The profile tab is the one that is not a placeholder, and not because profiles
+are ready. It holds the theme switcher and **sign out**, which the design
+system demo at `app/index.tsx` was carrying until the tabs replaced it —
+settings do not land until PR 21, and an app somebody cannot leave is worse
+than a plain profile tab.
+
+**Not in it:** tab contents beyond placeholders, a top header, the `Modal`
+primitive.
 
 ### PR 7 — Feed
 

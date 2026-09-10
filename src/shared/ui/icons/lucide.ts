@@ -1,12 +1,15 @@
 import {
     Bell,
     CircleUser,
+    Clock,
     Compass,
+    EyeOff,
     Heart,
     Home,
     Mail,
     MessageCircle,
     Repeat2,
+    RefreshCw,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { cssInterop } from "nativewind";
@@ -41,6 +44,11 @@ export const ExploreIcon = themed(Compass);
 export const NotificationsIcon = themed(Bell);
 export const MessagesIcon = themed(Mail);
 export const ProfileIcon = themed(CircleUser);
+
+/** Media: the cover over sensitive content, and the wait for a video. */
+export const HiddenIcon = themed(EyeOff);
+export const PendingIcon = themed(Clock);
+export const RefreshIcon = themed(RefreshCw);
 
 /** A post's three counters, in the order the web's card draws them. */
 export const CommentIcon = themed(MessageCircle);

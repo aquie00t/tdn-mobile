@@ -35,6 +35,7 @@ export function FeedScreen() {
         loadMore,
         retry,
         retryLoadMore,
+        replacePost,
     } = useFeed();
 
     // Selecting a tab re-runs this, and `fetchPosts` stamps each request so a
@@ -44,10 +45,13 @@ export function FeedScreen() {
     }, [type, fetchPosts]);
 
     // Stable, so a re-render of this screen does not hand `FlatList` a new
-    // function and make it rebuild every visible row.
+    // function and make it rebuild every visible row. `replacePost` is stable
+    // for the same reason, which is what keeps this one stable in turn.
     const renderItem = useCallback(
-        ({ item }: { item: Post }) => <PostCard {...item} />,
-        [],
+        ({ item }: { item: Post }) => (
+            <PostCard {...item} onUpdated={replacePost} />
+        ),
+        [replacePost],
     );
 
     return (

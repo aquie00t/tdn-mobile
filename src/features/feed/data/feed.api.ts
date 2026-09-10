@@ -52,4 +52,15 @@ export const feedApi = {
             isPublic: !params.followedOnly,
         });
     },
+
+    /**
+     * One post, re-read.
+     *
+     * Called while a video is being checked, and only for the post carrying
+     * it. Re-reading the feed to learn about one attachment costs every other
+     * row and, behind the 60 s server-side cache on the listing, usually hands
+     * back the same stale copy it was asked about.
+     */
+    getPostById: (postId: string): Promise<Post> =>
+        api.get<Post>(`/posts/${postId}`, { isPublic: true }),
 };

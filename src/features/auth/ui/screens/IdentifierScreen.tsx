@@ -6,17 +6,21 @@ import { AUTH_LIMITS } from "../../data/auth.types";
 import { Button } from "@shared/ui/Button";
 import { Logo } from "@shared/ui/Logo";
 import { Screen } from "@shared/ui/Screen";
+import { SocialButtons } from "../components/SocialButtons";
+import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
 import { TextField } from "@shared/ui/TextField";
 import { authApi } from "../../data/auth.api";
 import { getErrorMessage } from "@shared/utils/error-handler";
 import { useAuthFlowStore } from "../store/auth-flow.store";
 import { useI18n } from "@shared/hooks/useI18n";
+import { useOAuth } from "../hooks/useOAuth";
 
 export function IdentifierScreen() {
     const { t } = useI18n();
     const router = useRouter();
     const setIdentifier = useAuthFlowStore((s) => s.setIdentifier);
+    const oauth = useOAuth();
 
     const [value, setValue] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -85,10 +89,28 @@ export function IdentifierScreen() {
                         label={isLoading ? t("auth.checking") : t("auth.next")}
                         size="full"
                         loading={isLoading}
-                        disabled={!value.trim()}
+                        disabled={!value.trim() || oauth.pending !== null}
                         onPress={() => void handleNext()}
                     />
                 </View>
+
+                <SocialButtons
+                    onSelect={(provider) => void oauth.signInWith(provider)}
+                    pending={oauth.pending}
+                    disabled={isLoading}
+                />
+
+                {/*
+                 * Below the buttons rather than under the field: this is a
+                 * verdict on a flow that happened in a browser, and putting it
+                 * where the identifier's own errors go would read as a verdict
+                 * on what has been typed there.
+                 */}
+                {oauth.error && (
+                    <Text size="small" tone="danger" className="text-center">
+                        {oauth.error}
+                    </Text>
+                )}
             </View>
 
             <Text size="caption" tone="subtle" className="pb-4 text-center">
@@ -96,6 +118,19 @@ export function IdentifierScreen() {
                 {t("auth.privacy")}
                 {t("auth.termsSuffix")}
             </Text>
+
+            {/*
+             * The gap between the browser closing and the session existing.
+             * The provider's sheet has gone, the app is exchanging a code, and
+             * without this the screen looks idle at the one moment somebody is
+             * most likely to press something again.
+             */}
+            {oauth.isExchanging && (
+                <View className="absolute inset-0 items-center justify-center gap-4 bg-ground/95">
+                    <Spinner size="large" />
+                    <Text tone="subtle">{t("common.syncingAccount")}</Text>
+                </View>
+            )}
         </Screen>
     );
 }

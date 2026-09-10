@@ -114,6 +114,57 @@ describe("check", () => {
     });
 });
 
+describe("recoverAccount", () => {
+    it("names itself a native client, so the session comes in the body", async () => {
+        let body: unknown = null;
+
+        server.use(
+            http.post(`${BASE}/auth/recover-account`, async ({ request }) => {
+                body = await request.json();
+                return ok({
+                    accessToken: "a",
+                    expiresAt: 1,
+                    refreshToken: "r",
+                    refreshTokenExpiresAt: 2,
+                    user: { id: "u1", username: "ada", isEmailVerified: true },
+                });
+            }),
+        );
+
+        await authApi.recoverAccount("rec-1");
+
+        // Recovery mints a session from a credential, as login does, so it has
+        // no incoming channel to mirror and has to name one. Without the flag
+        // the API answers on the cookie channel and the phone is handed a
+        // fifteen-minute session with nothing to renew it.
+        expect(body).toEqual({ recoveryToken: "rec-1", client: "native" });
+    });
+
+    it("is sent once and never refreshed when the token has expired", async () => {
+        await setTokens({ accessToken: "stale", refreshToken: "old" });
+        const sent: (string | null)[] = [];
+        let refreshCalls = 0;
+
+        server.use(
+            http.post(`${BASE}/auth/recover-account`, ({ request }) => {
+                sent.push(request.headers.get("Authorization"));
+                return problem("Recovery token has expired.", 401);
+            }),
+            http.post(`${BASE}/auth/refresh`, () => {
+                refreshCalls += 1;
+                return problem("no", 401);
+            }),
+        );
+
+        await expect(authApi.recoverAccount("old-token")).rejects.toMatchObject(
+            { status: 401 },
+        );
+
+        expect(sent).toEqual([null]);
+        expect(refreshCalls).toBe(0);
+    });
+});
+
 describe("logout", () => {
     it("names the refresh token it wants retired", async () => {
         await setTokens({ accessToken: "a", refreshToken: "r-1" });

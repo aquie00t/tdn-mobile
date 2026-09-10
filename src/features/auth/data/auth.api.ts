@@ -65,6 +65,24 @@ export const authApi = {
         }),
 
     /**
+     * Restores an account that was deleted and is inside its thirty-day
+     * window, using the token a 403 from `/auth/login` — or an OAuth callback
+     * — hands over.
+     *
+     * `client: "native"` for the same reason login sends it: recovery mints a
+     * session from a credential rather than from a refresh token, so there is
+     * no incoming channel to mirror and the caller has to name one. Without
+     * it the API answers on the cookie channel and this client is handed a
+     * fifteen-minute session it cannot renew.
+     */
+    recoverAccount: (recoveryToken: string) =>
+        api.post<LoginResponse>(
+            "/auth/recover-account",
+            { recoveryToken, client: "native" },
+            { isAnonymous: true },
+        ),
+
+    /**
      * Sends the refresh token in the body, on the same channel it arrived on.
      * A browser is answered through its cookie and sends nothing; this client
      * has to name the token it wants retired, or the session stays alive on the

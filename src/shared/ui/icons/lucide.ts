@@ -1,4 +1,5 @@
 import {
+    ArrowLeft,
     Bell,
     Bookmark,
     CircleUser,
@@ -11,6 +12,7 @@ import {
     MessageCircle,
     Repeat2,
     RefreshCw,
+    Send,
     Share2,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
@@ -51,6 +53,12 @@ export const ProfileIcon = themed(CircleUser);
 export const HiddenIcon = themed(EyeOff);
 export const PendingIcon = themed(Clock);
 export const RefreshIcon = themed(RefreshCw);
+
+/** Getting back. */
+export const BackIcon = themed(ArrowLeft);
+
+/** Writing. */
+export const SendIcon = themed(Send);
 
 /** A post's actions, and the counters beside them. */
 export const BookmarkIcon = themed(Bookmark);

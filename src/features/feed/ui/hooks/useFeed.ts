@@ -9,6 +9,7 @@ import type {
     PostType,
 } from "../../data/feed.types";
 import { useI18n } from "@shared/hooks/useI18n";
+import { usePostOverlayStore } from "../store/post-overlay.store";
 
 /**
  * The feed's state, ported from the web hook of the same name.
@@ -110,6 +111,10 @@ export function useFeed(
                 assertList(data);
                 setPosts(data);
                 setHasMore(data.length === PAGE_LIMIT);
+                // The server's copy is now the newest thing anybody has, so
+                // the reader's own pending changes stop being an improvement
+                // on it and start being a way to freeze it.
+                usePostOverlayStore.getState().clear();
             } catch {
                 if (requestId !== requestIdRef.current) return;
                 setError(t("postList.error"));
@@ -175,26 +180,6 @@ export function useFeed(
         );
     }, []);
 
-    /**
-     * Applies a partial change to one row, in place.
-     *
-     * This is where an optimistic like or bookmark is written, and it has to
-     * be the list rather than the card. A `FlatList` unmounts rows as they
-     * leave its window and mounts them again on the way back, so a card
-     * holding its own `isLiked` loses it on the way past and re-seeds from the
-     * stale post — the heart empties itself while the reader scrolls. The web
-     * never meets this, because its rows are DOM nodes that stay.
-     *
-     * Rolling back is the same call with the previous values.
-     */
-    const patchPost = useCallback((postId: string, changes: Partial<Post>) => {
-        setPosts((prev) =>
-            prev.map((post) =>
-                post.id === postId ? { ...post, ...changes } : post,
-            ),
-        );
-    }, []);
-
     const removePost = useCallback((postId: string) => {
         setPosts((prev) => prev.filter((post) => post.id !== postId));
     }, []);
@@ -223,7 +208,6 @@ export function useFeed(
         retryLoadMore,
         // `addPost` waits for composing (PR 11) and `removePost` for
         // deletion; the other two are in use.
-        patchPost,
         addPost,
         replacePost,
         removePost,

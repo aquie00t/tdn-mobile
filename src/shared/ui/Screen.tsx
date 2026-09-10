@@ -12,9 +12,16 @@ export interface ScreenProps {
     /** Scrolls its content. Off by default: a list brings its own scrolling. */
     scroll?: boolean;
     /**
-     * Which insets to honour. A screen under the tab bar wants the top only,
-     * because the bar already covers the bottom — padding for it twice leaves
-     * a gap the ground shows through.
+     * Which insets to honour.
+     *
+     * **Anything inside the tab navigator wants the top only**, and that now
+     * means every detail screen too: they live in a tab's own stack, so the
+     * bar is drawn below them and already fills the gesture strip. Asking for
+     * the bottom as well puts an empty band between a docked composer and the
+     * bar — which is exactly what it looked like.
+     *
+     * The screens pushed over everything — the composer, the sign-in flow —
+     * do want it, because nothing else is down there.
      */
     edges?: { top?: boolean; bottom?: boolean };
     className?: string;

@@ -92,8 +92,9 @@ function PostCardView({
 
     // Read here rather than passed down, so the same row shows the reader's
     // own like whether it was made from this card or from the detail screen.
-    const overlays = usePostOverlayStore((s) => s.overlays);
-    const post = withOverlay(serverPost, overlays);
+    // One entry, not the map: see `withOverlay`.
+    const overlay = usePostOverlayStore((s) => s.overlays[serverPost.id]);
+    const post = withOverlay(serverPost, overlay);
     const setQuoteDraft = useQuoteDraftStore((s) => s.set);
 
     /**
@@ -144,7 +145,22 @@ function PostCardView({
              * substitutes a CDN default, so there is nothing to fall back to
              * and nothing to sanitise.
              */}
-            <Avatar uri={post.author.avatarUrl} size={40} />
+            {/*
+             * The way into a profile. Nested inside a row that opens the post,
+             * so the tap lands here and never reaches the one behind it.
+             */}
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`@${post.author.username}`}
+                onPress={() =>
+                    router.push({
+                        pathname: "/profile/[username]",
+                        params: { username: post.author.username },
+                    })
+                }
+            >
+                <Avatar uri={post.author.avatarUrl} size={40} />
+            </Pressable>
 
             <View className="flex-1 gap-2">
                 <View className="flex-row items-center gap-1.5">

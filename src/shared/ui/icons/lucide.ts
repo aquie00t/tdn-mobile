@@ -16,8 +16,9 @@ import {
     Repeat2,
     RefreshCw,
     Send,
-    X,
+    Settings,
     Share2,
+    X,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { cssInterop } from "nativewind";
@@ -58,7 +59,9 @@ export const HiddenIcon = themed(EyeOff);
 export const PendingIcon = themed(Clock);
 export const RefreshIcon = themed(RefreshCw);
 
-/** Getting back. */
+/** Getting back, and getting to the switches. */
+export const SettingsIcon = themed(Settings);
+
 export const BackIcon = themed(ArrowLeft);
 
 /** Writing. */

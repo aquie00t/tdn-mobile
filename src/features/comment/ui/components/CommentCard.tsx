@@ -75,8 +75,9 @@ function CommentCardView({
     const { t, locale } = useI18n();
     const router = useRouter();
 
-    const overlays = useCommentOverlayStore((s) => s.overlays);
-    const comment = withOverlay(serverComment, overlays);
+    // One entry, not the map: see `withOverlay`.
+    const overlay = useCommentOverlayStore((s) => s.overlays[serverComment.id]);
+    const comment = withOverlay(serverComment, overlay);
 
     const { handleLike, isLikeLoading, handleBookmark, handleShare } =
         useCommentActions({ comment });
@@ -102,10 +103,21 @@ function CommentCardView({
             }
         >
             <View className="flex-row gap-3">
-                <Avatar
-                    uri={comment.author.avatarUrl}
-                    size={isHead ? 40 : 32}
-                />
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`@${comment.author.username}`}
+                    onPress={() =>
+                        router.push({
+                            pathname: "/profile/[username]",
+                            params: { username: comment.author.username },
+                        })
+                    }
+                >
+                    <Avatar
+                        uri={comment.author.avatarUrl}
+                        size={isHead ? 40 : 32}
+                    />
+                </Pressable>
 
                 <View className="flex-1 gap-1.5">
                     <View className="flex-row items-center gap-1.5">

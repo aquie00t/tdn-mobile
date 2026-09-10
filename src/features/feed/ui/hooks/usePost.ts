@@ -35,7 +35,7 @@ export function usePost(postId: string) {
         isLoading: true,
         error: null,
     });
-    const overlays = usePostOverlayStore((s) => s.overlays);
+    const overlay = usePostOverlayStore((s) => s.overlays[postId]);
 
     const fetchPost = useCallback(async () => {
         try {
@@ -56,7 +56,7 @@ export function usePost(postId: string) {
     }, [fetchPost]);
 
     return {
-        post: state.post ? withOverlay(state.post, overlays) : null,
+        post: state.post ? withOverlay(state.post, overlay) : null,
         isLoading: state.isLoading,
         error: state.error,
         fetchPost,

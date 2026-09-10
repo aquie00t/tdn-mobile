@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { Linking } from "react-native";
 
 import { splitRichText } from "../utils/rich-text";
@@ -20,9 +20,14 @@ export interface RichTextProps extends TextProps {
  * caller set here rather than each carrying their own.
  */
 export function RichText({ text, ...props }: RichTextProps) {
+    // A regex pass over the body on every render is small and never free; a
+    // feed redraws its rows for reasons that have nothing to do with the words
+    // in them.
+    const runs = useMemo(() => splitRichText(text), [text]);
+
     return (
         <Text {...props}>
-            {splitRichText(text).map((run) => {
+            {runs.map((run) => {
                 if (run.kind === "bold") {
                     return (
                         <Text key={run.start} className="font-bold">

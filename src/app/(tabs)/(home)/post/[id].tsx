@@ -1,15 +1,15 @@
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect } from "react";
 
-import { CommentList } from "../../features/comment/ui/components/CommentList";
-import { ErrorState } from "../../shared/ui/ErrorState";
-import { PostDetailHeader } from "../../features/feed/ui/components/PostDetailHeader";
-import { Screen } from "../../shared/ui/Screen";
-import { ScreenHeader } from "../../shared/layout/ScreenHeader";
-import { Spinner } from "../../shared/ui/Spinner";
-import { useI18n } from "../../shared/hooks/useI18n";
-import { usePost } from "../../features/feed/ui/hooks/usePost";
-import { usePostOverlayStore } from "../../features/feed/ui/store/post-overlay.store";
+import { CommentList } from "@features/comment/ui/components/CommentList";
+import { ErrorState } from "@shared/ui/ErrorState";
+import { PostDetailHeader } from "@features/feed/ui/components/PostDetailHeader";
+import { Screen } from "@shared/ui/Screen";
+import { ScreenHeader } from "@shared/layout/ScreenHeader";
+import { Spinner } from "@shared/ui/Spinner";
+import { useI18n } from "@shared/hooks/useI18n";
+import { usePost } from "@features/feed/ui/hooks/usePost";
+import { usePostOverlayStore } from "@features/feed/ui/store/post-overlay.store";
 
 /**
  * One post and its thread.
@@ -44,7 +44,7 @@ export default function PostDetailRoute() {
     }, [post, patch]);
 
     return (
-        <Screen edges={{ top: true, bottom: true }}>
+        <Screen edges={{ top: true, bottom: false }}>
             {/*
              * The root navigator hides its own headers, so without this there
              * is no way back on screen at all — only the hardware button and

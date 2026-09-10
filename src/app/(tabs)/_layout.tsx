@@ -2,15 +2,15 @@ import { TabList, TabSlot, TabTrigger, Tabs } from "expo-router/ui";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { TabBarButton } from "../../shared/layout/TabBarButton";
+import { TabBarButton } from "@shared/layout/TabBarButton";
 import {
     ExploreIcon,
     HomeIcon,
     MessagesIcon,
     NotificationsIcon,
     ProfileIcon,
-} from "../../shared/ui/icons/lucide";
-import { useSessionStore } from "../../core/session/session.store";
+} from "@shared/ui/icons/lucide";
+import { useSessionStore } from "@core/session/session.store";
 
 /**
  * The app, once there is a session. Five tabs mirroring the web's `BottomNav`.
@@ -39,7 +39,16 @@ export default function TabsLayout() {
 
     return (
         <Tabs>
-            <TabSlot />
+            {/*
+             * Inactive tabs are detached rather than kept in the tree.
+             *
+             * By default every tab that has been opened stays rendered, so a
+             * theme change repaints the feed, the profile and whatever else
+             * has been visited — all at once, for one screen anybody can see.
+             * Detached, they keep their state and their scroll position and
+             * pay nothing until they are looked at again.
+             */}
+            <TabSlot detachInactiveScreens />
 
             <TabList asChild>
                 <View
@@ -49,7 +58,13 @@ export default function TabsLayout() {
                     // margin would leave the ground showing through beneath.
                     style={{ paddingBottom: insets.bottom }}
                 >
-                    <TabTrigger name="index" href="/" asChild>
+                    {/*
+                     * The Home tab is a *group* — `(home)` — because it has a
+                     * stack of its own, so a post, a thread or a profile opens
+                     * inside the tab and the bar below stays where it is. The
+                     * trigger names the group; the href is still the root.
+                     */}
+                    <TabTrigger name="(home)" href="/" asChild>
                         <TabBarButton icon={HomeIcon} label="nav.home" />
                     </TabTrigger>
 
@@ -72,7 +87,7 @@ export default function TabsLayout() {
                         <TabBarButton icon={MessagesIcon} label="nav.msgs" />
                     </TabTrigger>
 
-                    <TabTrigger name="profile" href="/profile" asChild>
+                    <TabTrigger name="(profile)" href="/profile" asChild>
                         <TabBarButton
                             icon={ProfileIcon}
                             label="nav.profile"

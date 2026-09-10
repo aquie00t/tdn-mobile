@@ -5,9 +5,11 @@ import { useRouter } from "expo-router";
 import { Button } from "@shared/ui/Button";
 import { EmptyState } from "@shared/ui/EmptyState";
 import { ErrorState } from "@shared/ui/ErrorState";
+import { FeedFilterRow } from "../components/FeedFilterRow";
+import { feedIdentity } from "../../domain/feed-filters";
 import { FeedTypeStrip } from "../components/FeedTypeStrip";
 import { PostCard } from "../components/PostCard";
-import type { Post, PostType } from "../../data/feed.types";
+import type { Post, PostCategory, PostType } from "../../data/feed.types";
 import { Screen } from "@shared/ui/Screen";
 import { CreateIcon } from "@shared/ui/icons/lucide";
 import { Spinner } from "@shared/ui/Spinner";
@@ -21,10 +23,23 @@ const END_THRESHOLD = 0.5;
 /** About two screens of rows, so the first scroll has somewhere to go. */
 const INITIAL_ROWS = 8;
 
+/**
+ * The tabs the filter row appears on — and the tabs the write button does not.
+ *
+ * Both follow from who writes those feeds. News and Updates are bot accounts,
+ * so "only the ones I follow" is a real cut; Community is everybody, where the
+ * same chip would turn the tab into a second one. The web draws the same line
+ * in the same place.
+ */
+const FILTERABLE_TYPES = new Set<PostType>(["TECH_NEWS", "SYSTEM_UPDATE"]);
+
 export function FeedScreen() {
     const { t } = useI18n();
     const router = useRouter();
     const [type, setType] = useState<PostType>("COMMUNITY");
+    const [followedOnly, setFollowedOnly] = useState(false);
+    const [categories, setCategories] = useState<PostCategory[]>([]);
+    const canFilter = FILTERABLE_TYPES.has(type);
     const {
         posts,
         isLoading,
@@ -39,13 +54,25 @@ export function FeedScreen() {
         retry,
         retryLoadMore,
         replacePost,
-    } = useFeed();
+    } = useFeed(followedOnly, categories);
 
-    // Selecting a tab re-runs this, and `fetchPosts` stamps each request so a
-    // slow answer from the tab just left cannot land last.
+    /*
+     * Keyed on what makes one feed a different feed, not on the objects that
+     * describe it: `categories` is a fresh array every render, so depending on
+     * it directly would re-read the feed on every keystroke elsewhere on the
+     * screen. `feedIdentity` also sorts, so the same two chips chosen in the
+     * other order do not buy a round trip to the list already on screen.
+     *
+     * `fetchPosts` stamps each request, so a slow answer from a tab or a
+     * filter that has been left cannot land last.
+     */
+    const identity = feedIdentity({ type, followedOnly, categories });
+
     useEffect(() => {
         void fetchPosts(type);
-    }, [type, fetchPosts]);
+        // `identity` is what actually changed; `type` is read from it.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [identity, fetchPosts]);
 
     // All three are stable, so a re-render of this screen does not hand
     // `FlatList` new functions — it treats a changed `onEndReached` as a
@@ -63,7 +90,35 @@ export function FeedScreen() {
 
     return (
         <Screen edges={{ top: true, bottom: false }}>
-            <FeedTypeStrip active={type} onSelect={setType} />
+            <FeedTypeStrip
+                active={type}
+                onSelect={(next) => {
+                    setType(next);
+                    // The narrowings belong to the feed that was open. Carried
+                    // across, a reader who filtered News to Frontend would find
+                    // Updates already filtered by something they never chose
+                    // there — and the web clears them for the same reason.
+                    setFollowedOnly(false);
+                    setCategories([]);
+                }}
+            />
+
+            {canFilter && (
+                <FeedFilterRow
+                    followedOnly={followedOnly}
+                    onToggleFollowedOnly={() =>
+                        setFollowedOnly((previous) => !previous)
+                    }
+                    categories={categories}
+                    onToggleCategory={(category) =>
+                        setCategories((previous) =>
+                            previous.includes(category)
+                                ? previous.filter((value) => value !== category)
+                                : [...previous, category],
+                        )
+                    }
+                />
+            )}
 
             {/*
              * `isLoading` on its own, not `isLoading && posts.length === 0`.

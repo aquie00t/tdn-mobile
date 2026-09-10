@@ -7,17 +7,23 @@ import {
     Clock,
     Compass,
     EyeOff,
+    Gamepad2,
     Heart,
     Home,
     ImagePlus,
     Mail,
     MessageCircle,
+    Monitor,
     Plus,
     Repeat2,
     RefreshCw,
     Send,
+    Server,
     Settings,
     Share2,
+    Smartphone,
+    Sparkles,
+    Users,
     X,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
@@ -63,6 +69,17 @@ export const RefreshIcon = themed(RefreshCw);
 export const SettingsIcon = themed(Settings);
 
 export const BackIcon = themed(ArrowLeft);
+
+/**
+ * The five fields, in the order `CATEGORY_OPTIONS` names them, plus the mark
+ * for a feed narrowed to the accounts you follow.
+ */
+export const FollowingIcon = themed(Users);
+export const FrontendIcon = themed(Monitor);
+export const BackendIcon = themed(Server);
+export const MobileIcon = themed(Smartphone);
+export const GameIcon = themed(Gamepad2);
+export const AiIcon = themed(Sparkles);
 
 /** Writing. */
 export const SendIcon = themed(Send);

@@ -4,11 +4,22 @@ import { memo } from "react";
 import { Avatar } from "@shared/ui/Avatar";
 import { CommentIcon, LikeIcon, QuoteIcon } from "@shared/ui/icons/lucide";
 import type { LucideIcon } from "lucide-react-native";
+import { PendingMedia } from "@shared/ui/PendingMedia";
 import type { Post } from "../../data/feed.types";
+import { PostMedia } from "@shared/ui/PostMedia";
+import { SensitiveMedia } from "@shared/ui/SensitiveMedia";
 import { Text } from "@shared/ui/Text";
 import { useI18n } from "@shared/hooks/useI18n";
+import { usePendingMedia } from "../hooks/usePendingMedia";
 
-export type PostCardProps = Post;
+export interface PostCardProps extends Post {
+    /**
+     * Handed a freshly read copy of this post when its pending video resolves.
+     * Without one there is nowhere to put the answer, so the placeholder shows
+     * the wait but offers no way to end it.
+     */
+    onUpdated?: (post: Post) => void;
+}
 
 /**
  * One formatter per locale, kept.
@@ -39,19 +50,26 @@ function formatPostDate(iso: string, locale: string): string {
 /**
  * One row of the feed.
  *
- * **Everything on it that looks interactive is not, and that is this PR's
- * boundary.** The counters are numbers, not buttons: liking and bookmarking
- * land in PR 9, media in PR 8, the quoted card in PR 12, and opening the post
- * in PR 10. They are drawn as plain views rather than disabled `Pressable`s on
- * purpose — a button that answers a tap with nothing reads as broken, where a
- * number reads as a number.
+ * The counters are numbers rather than buttons, and that is still this card's
+ * boundary: liking and bookmarking land in PR 9, the quoted card in PR 12, and
+ * opening the post in PR 10. They are drawn as plain views rather than
+ * disabled `Pressable`s on purpose — a button that answers a tap with nothing
+ * reads as broken, where a number reads as a number.
+ *
+ * Media is no longer among them. The block below renders attachments, covers
+ * the ones the server flagged, and stands in for a video still being checked.
  *
  * `mentions` therefore flows through as ordinary text. PR 24 brings the
  * renderer that turns `@ada` into something you can press.
  */
-function PostCardView(post: Post) {
+function PostCardView({ onUpdated, ...post }: PostCardProps) {
     const { locale } = useI18n();
     const date = formatPostDate(post.createdAt, locale);
+    const { refresh, isRefreshing } = usePendingMedia({
+        postId: post.id,
+        mediaPending: post.mediaPending,
+        onUpdated,
+    });
 
     return (
         <View className="flex-row gap-3 border-b border-ink/10 px-4 py-4">
@@ -107,6 +125,26 @@ function PostCardView(post: Post) {
                 </View>
 
                 {post.content.length > 0 && <Text>{post.content}</Text>}
+
+                {/*
+                 * Both, never one or the other by construction: a post whose
+                 * video is still being checked arrives with `mediaUrls: []`,
+                 * so the placeholder stands alone until it resolves — and a
+                 * post with a picture *and* a pending video shows the picture
+                 * with the wait beneath it.
+                 */}
+                {post.mediaPending && (
+                    <PendingMedia
+                        onRefresh={onUpdated ? () => void refresh() : undefined}
+                        isRefreshing={isRefreshing}
+                    />
+                )}
+
+                {post.mediaUrls.length > 0 && (
+                    <SensitiveMedia isSensitive={post.isSensitive}>
+                        <PostMedia uris={post.mediaUrls} />
+                    </SensitiveMedia>
+                )}
 
                 <View className="flex-row items-center gap-6 pt-1">
                     <Counter icon={CommentIcon} count={post.commentCount} />

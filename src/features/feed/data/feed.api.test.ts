@@ -166,3 +166,53 @@ describe("getPosts", () => {
         expect(refreshCalls).toBe(1);
     });
 });
+
+describe("getPostById", () => {
+    it("reads one post and unwraps it", async () => {
+        const post = { id: "p1", content: "hello", mediaPending: false };
+        server.use(http.get(`${BASE}/posts/p1`, () => ok(post)));
+
+        await expect(feedApi.getPostById("p1")).resolves.toEqual(post);
+    });
+
+    it("survives a stale session", async () => {
+        // Polled while a video is checked, which can easily outlive an access
+        // token. `isPublic` is what stops the wait ending in a sign-out.
+        await setTokens({ accessToken: "stale", refreshToken: "old" });
+        const sent: (string | null)[] = [];
+
+        server.use(
+            http.get(`${BASE}/posts/p1`, ({ request }) => {
+                const auth = request.headers.get("Authorization");
+                sent.push(auth);
+
+                if (auth) {
+                    return HttpResponse.json(
+                        {
+                            type: "about:blank",
+                            title: "UnauthorizedError",
+                            status: 401,
+                            detail: "Token expired",
+                            instance: "/",
+                        },
+                        { status: 401 },
+                    );
+                }
+
+                return ok({ id: "p1" });
+            }),
+            http.post(`${BASE}/auth/refresh`, () =>
+                ok({
+                    accessToken: "fresh",
+                    expiresAt: 1,
+                    refreshToken: "rotated",
+                    refreshTokenExpiresAt: 2,
+                    user: { id: "u1", username: "ada" },
+                }),
+            ),
+        );
+
+        await expect(feedApi.getPostById("p1")).resolves.toEqual({ id: "p1" });
+        expect(sent).toEqual(["Bearer stale", null]);
+    });
+});

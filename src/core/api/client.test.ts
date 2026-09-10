@@ -26,7 +26,7 @@ vi.mock("expo-secure-store", () => ({
     },
 }));
 
-import { api, registerSessionExpiredHandler } from "./client";
+import { BASE_URL, api, registerSessionExpiredHandler } from "./client";
 import { SecureKeys } from "../platform/secure-storage.port";
 import {
     clearTokens,
@@ -35,7 +35,13 @@ import {
     setTokens,
 } from "../session/tokens";
 
-const BASE = "http://localhost:8080/api/v1";
+/**
+ * Taken from the client rather than written out again. The default moved to
+ * production once it became clear that `localhost` on a phone is the phone, and
+ * every handler in this file silently stopped matching — a hardcoded copy turns
+ * a one-line change into nineteen unexplained failures.
+ */
+const BASE = BASE_URL;
 
 /** The API renders every error as an RFC 7807 problem document. */
 function problem(detail: string, status: number, title = "UnauthorizedError") {

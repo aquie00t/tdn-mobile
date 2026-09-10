@@ -130,6 +130,11 @@ rename.
 `core/session/`, the auth data layer, and the identifier → login | register →
 verify-email flow, plus forgot-password → reset-password.
 
+**The app is behind a sign-in wall**, which is a deliberate difference from the
+web client rather than a simplification of it. The web lets a reader browse and
+asks for a session only when they try to change something; here there is one
+front door, and `useAuthGate` in the root layout keeps both directions honest.
+
 `login` sends `client: "native"`, so the refresh token comes back in the body
 and goes to the keystore. `isAnonymous` on every credential endpoint — a 401
 from `/auth/login` is the endpoint's verdict on the password, and replaying it

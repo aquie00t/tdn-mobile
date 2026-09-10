@@ -1,24 +1,31 @@
 import "../shared/theme/global.css";
 
-import { Stack } from "expo-router";
+import { Stack, router, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ToastHost } from "../shared/ui/Toast";
+import { clearTokens, loadTokens } from "../core/session/tokens";
+import { registerSessionExpiredHandler } from "../core/api/client";
 import { useLanguageStore } from "../shared/store/language.store";
+import { useSessionStore } from "../core/session/session.store";
 import { useTheme } from "../shared/hooks/useTheme";
 import { useThemeStore } from "../shared/store/theme.store";
 
 /**
- * Held open until the stored theme and language have been read.
+ * Held open until the stored theme, language and session have been read.
  *
- * `AsyncStorage` answers a tick after the first render, so without this the app
- * paints its default — dark, English — and then repaints. For language that is
- * a flash of the wrong words; for the theme it is a white screen on a dark
- * install. This is the native counterpart of the inline script in the web
- * client's `index.html`, which exists for exactly the same reason.
+ * `AsyncStorage` and the keystore both answer a tick after the first render, so
+ * without this the app paints its defaults — dark, English, signed out — and
+ * then repaints. For language that is a flash of the wrong words; for the theme
+ * it is a white screen on a dark install; and for the session it is worse than
+ * a flash, because `getAccessToken()` answers `null` until `loadTokens()`
+ * resolves and any request made in that window goes out unauthenticated.
+ *
+ * This is the native counterpart of the inline script in the web client's
+ * `index.html`, which exists for the same reason.
  *
  * The splash's own background is set to the ground colour in `app.config.ts`.
  * Holding a white splash while waiting for a dark theme does not remove the
@@ -26,50 +33,111 @@ import { useThemeStore } from "../shared/store/theme.store";
  */
 void SplashScreen.preventAutoHideAsync();
 
-/** Both persisted stores, or neither — one gate for the pair. */
-function usePersistedStores(): boolean {
-    const [hydrated, setHydrated] = useState(
+/** The three reads that have to finish before anything renders. */
+function useBootstrap(): boolean {
+    const [storesHydrated, setStoresHydrated] = useState(
         () =>
             useThemeStore.persist.hasHydrated() &&
-            useLanguageStore.persist.hasHydrated(),
+            useLanguageStore.persist.hasHydrated() &&
+            useSessionStore.persist.hasHydrated(),
     );
+    const [tokensLoaded, setTokensLoaded] = useState(false);
 
     useEffect(() => {
         const check = () => {
             if (
                 useThemeStore.persist.hasHydrated() &&
-                useLanguageStore.persist.hasHydrated()
+                useLanguageStore.persist.hasHydrated() &&
+                useSessionStore.persist.hasHydrated()
             ) {
-                setHydrated(true);
+                setStoresHydrated(true);
             }
         };
 
         const unsubscribers = [
             useThemeStore.persist.onFinishHydration(check),
             useLanguageStore.persist.onFinishHydration(check),
+            useSessionStore.persist.onFinishHydration(check),
         ];
 
-        // Both may have finished between the initial state and this effect.
+        // They may all have finished between the initial state and this effect.
         check();
 
         return () => unsubscribers.forEach((off) => off());
     }, []);
 
-    return hydrated;
+    useEffect(() => {
+        // Failing to read the keystore is not a reason to hold the splash
+        // forever. The app opens signed out, which is recoverable; a splash
+        // that never lifts is not.
+        loadTokens().finally(() => setTokensLoaded(true));
+    }, []);
+
+    return storesHydrated && tokensLoaded;
+}
+
+/**
+ * The sign-in wall.
+ *
+ * This app does not do guest browsing, and that is a deliberate difference from
+ * the web client — which lets a reader through the whole feed and only asks for
+ * a session when they try to change something. Here there is one front door.
+ *
+ * Written as a redirect rather than by branching what the root renders, because
+ * the navigator has to exist before anything can be routed into it: returning a
+ * different tree for a signed-out reader would unmount the router on every sign
+ * in and out, and take the animation and the back stack with it.
+ *
+ * Both directions matter. Without a session, anywhere outside `(auth)` is
+ * bounced to the front door; with one, `(auth)` is a screen nobody has any
+ * business being on, so signing in leaves it immediately.
+ */
+function useAuthGate(ready: boolean) {
+    const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
+    const segments = useSegments();
+    const inAuthFlow = segments[0] === "(auth)";
+
+    useEffect(() => {
+        // Routing before the stored session has been read would send every
+        // returning account to the sign-in screen for a frame.
+        if (!ready) return;
+
+        if (!isAuthenticated && !inAuthFlow) {
+            router.replace("/(auth)/identifier");
+        } else if (isAuthenticated && inAuthFlow) {
+            router.replace("/");
+        }
+    }, [ready, isAuthenticated, inAuthFlow]);
 }
 
 export default function RootLayout() {
-    const hydrated = usePersistedStores();
+    const ready = useBootstrap();
     useTheme();
+    useAuthGate(ready);
 
     useEffect(() => {
-        if (hydrated) void SplashScreen.hideAsync();
-    }, [hydrated]);
+        /*
+         * A refresh that could not be renewed.
+         *
+         * Clearing the session is the whole of it — the gate above watches that
+         * flag and does the routing, so this does not navigate itself. Two
+         * things racing to `replace` the same route is how a reader ends up
+         * behind a screen they cannot back out of.
+         */
+        registerSessionExpiredHandler(() => {
+            useSessionStore.getState().clearSession();
+            void clearTokens();
+        });
+    }, []);
+
+    useEffect(() => {
+        if (ready) void SplashScreen.hideAsync();
+    }, [ready]);
 
     // The splash is still up, so this frame is never seen. Rendering the
     // navigator before the theme is known is what puts the wrong colour on
     // screen underneath it.
-    if (!hydrated) return null;
+    if (!ready) return null;
 
     return (
         <SafeAreaProvider>

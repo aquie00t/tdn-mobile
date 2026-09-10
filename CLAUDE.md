@@ -124,6 +124,14 @@ configuration rather than merging it**, so each glob carries its full pattern
 set and the most specific override is listed last. Written the other way, the
 general override silently cancels the specific one and the rule never fires.
 
+**Anything outside the current feature is imported through an alias** —
+`@shared/…`, `@core/…` — and relative paths stay within it. This is what makes
+the boundary checkable: a depth-based pattern like `../../../../*/ui/**` cannot
+tell `src/features/other/ui` from `src/shared/ui`, because how many `../` reach
+`src/features` depends on how deeply the importing file is nested. Metro
+resolves the aliases (`experiments.tsconfigPaths` defaults to true) and so does
+the Vitest config.
+
 ### The platform seam
 
 `src/core/platform/` is the one place ports earn their keep — things that
@@ -200,6 +208,27 @@ Eight routes accept one (`tdn-api/docs/idempotency.md` lists seven; `POST
 /billing/play/purchases` opts in too and is missing from the doc). The plugin
 engages only for an authenticated request, and a key over 200 characters is a
 400.
+
+## Sessions
+
+**There is no guest browsing, and that is a deliberate difference from the web
+client.** The web lets a reader through the whole feed and only asks for a
+session when they try to change something; the app is behind a sign-in wall.
+`useAuthGate` in `src/app/_layout.tsx` redirects in both directions — out of
+the app without a session, and out of `(auth)` with one.
+
+`isPublic` on the API client still matters even so: it governs what happens to
+a *stale* token on a readable endpoint, which is not the same question as
+whether a guest may read.
+
+Tokens live in `src/core/session/tokens.ts` (keystore); who is signed in lives
+in `src/core/session/session.store.ts` (ordinary storage). The store has no
+`signOut`, on purpose — signing out means telling the server, and `core/` may
+not import a feature's data layer. `useAuthActions` owns the sequence.
+
+The root layout holds the splash until three things have been read: both
+persisted stores **and** `loadTokens()`. Until that resolves `getAccessToken()`
+answers `null`, so anything fetched in that window goes out unauthenticated.
 
 ## Styling
 

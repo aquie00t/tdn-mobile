@@ -11,10 +11,10 @@ import type { LoginResponse } from "../../data/auth.types";
  * A pending-deletion account, which `/auth/login` answers with a 403 carrying a
  * top-level `recoveryToken`.
  *
- * Recognised here so it can be told apart from a wrong password, but not acted
- * on: `/auth/recover-account` sets a cookie unconditionally and returns no body
- * tokens, so recovery cannot complete on this client until that is fixed — the
- * same API-side defect that blocks OAuth, and fixed with it.
+ * Recognised here so the two callers that meet it — the login screen and the
+ * OAuth callback — can send somebody to the screen that spends the token
+ * rather than reporting a dead end. The password was right; the account is
+ * simply on its way out, and has thirty days in which that can be undone.
  */
 export function isPendingDeletion(
     err: unknown,

@@ -13,8 +13,19 @@ interface AuthFlowState {
      * "wrong code".
      */
     resetEmail: string;
+    /**
+     * The token that recovers a deleted account, carried from wherever it was
+     * handed over to the screen that spends it — a 403 from `/auth/login`, or
+     * an OAuth callback that came back `account_pending_deletion`.
+     *
+     * It is a credential with a fifteen-minute life, which is the other reason
+     * this store is not persisted: it has no business surviving the app being
+     * closed, and `reset()` below is what discards it once it is spent.
+     */
+    recoveryToken: string;
     setIdentifier: (identifier: string) => void;
     setResetEmail: (email: string) => void;
+    setRecoveryToken: (token: string) => void;
     reset: () => void;
 }
 
@@ -23,14 +34,16 @@ interface AuthFlowState {
  *
  * The web runs the whole flow from a store — a `step` field, a modal, and a
  * transition table. Here the steps are routes, so navigation *is* the state
- * machine and this holds the two strings a route parameter would otherwise
+ * machine and this holds the three strings a route parameter would otherwise
  * have to carry. Not persisted: a half-finished sign-in should not survive the
  * app being closed.
  */
 export const useAuthFlowStore = create<AuthFlowState>((set) => ({
     identifier: "",
     resetEmail: "",
+    recoveryToken: "",
     setIdentifier: (identifier) => set({ identifier }),
     setResetEmail: (resetEmail) => set({ resetEmail }),
-    reset: () => set({ identifier: "", resetEmail: "" }),
+    setRecoveryToken: (recoveryToken) => set({ recoveryToken }),
+    reset: () => set({ identifier: "", resetEmail: "", recoveryToken: "" }),
 }));

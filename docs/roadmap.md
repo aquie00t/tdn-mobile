@@ -148,15 +148,31 @@ The session-expired handler clears the session and reopens sign-in.
 
 ## Phase 1 — A usable app
 
-### PR 5 — OAuth sign-in
+### PR 5 — OAuth sign-in, and account recovery
 
-`expo-auth-session` against `GET /oauth/{github,google}?redirect=tdn://…`, then
-`POST /oauth/exchange`. The exchange takes no client flag and must not be given
-one: the channel was recorded on the code when the flow started.
+`WebBrowser.openAuthSessionAsync` against
+`GET /oauth/{github,google}?redirect=tdn://oauth`, then `POST /oauth/exchange`.
+The exchange takes no client flag and must not be given one: the channel was
+recorded on the code when the flow started.
 
-**Deployment dependency:** the `tdn://` target has to be added to the API's
-`OAUTH_NATIVE_REDIRECT_ALLOWLIST`, which is an exact match with no prefix test.
-Until it is, every attempt is a 400.
+Not `expo-auth-session`, which this document named before there was a reason to
+choose. Its `makeRedirectUri()` answers differently per environment, and the
+allow-list below is an exact match with nowhere to put "differently" — so the
+redirect is written out as a constant and the dependency is dropped. The
+provider dance belongs to the API in either case; this end only opens an
+address and reads the one it comes back on.
+
+Account recovery lands here rather than in its own PR. The callback can come
+back `account_pending_deletion` with a recovery token, which is the same thing
+a 403 from `/auth/login` carries — one screen answers both, and both were
+waiting on the same API fix.
+
+**Deployment dependency:** the `tdn://oauth` target has to be added to the
+API's `OAUTH_NATIVE_REDIRECT_ALLOWLIST`, which is an exact match with no prefix
+test. Until it is, every attempt is a 400.
+
+**Not in it:** linking or unlinking a provider on an existing account, Apple
+sign-in.
 
 ### PR 6 — App shell and tab navigation
 

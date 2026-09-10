@@ -16,6 +16,7 @@ export function LoginScreen() {
     const { t } = useI18n();
     const router = useRouter();
     const identifier = useAuthFlowStore((s) => s.identifier);
+    const setRecoveryToken = useAuthFlowStore((s) => s.setRecoveryToken);
     const { acceptSession } = useAuthActions();
 
     const [password, setPassword] = useState("");
@@ -35,14 +36,19 @@ export function LoginScreen() {
             const data = await authApi.login(identifier, password);
             await acceptSession(data);
         } catch (err) {
-            // Told apart from a wrong password, because it is not one — the
-            // account exists and is scheduled for deletion. Recovery itself
-            // needs an API fix that lands with OAuth.
-            setError(
-                isPendingDeletion(err)
-                    ? t("auth.recoverySubtitle")
-                    : getErrorMessage(err),
-            );
+            // Not a wrong password, so not an error under the field: the
+            // account exists, the password was right, and it is scheduled for
+            // deletion. The token in that 403 is the only thing that undoes
+            // it, and it lives fifteen minutes — so this goes straight to the
+            // screen that can spend it rather than reporting a dead end.
+            if (isPendingDeletion(err)) {
+                setRecoveryToken(err.recoveryToken);
+                setIsLoading(false);
+                router.push("/(auth)/recover-account");
+                return;
+            }
+
+            setError(getErrorMessage(err));
             setIsLoading(false);
         }
     };

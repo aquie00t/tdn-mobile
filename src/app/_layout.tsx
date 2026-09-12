@@ -11,9 +11,12 @@ import { clearTokens, loadTokens } from "@core/session/tokens";
 import { registerSessionExpiredHandler } from "@core/api/client";
 import { useLanguageStore } from "@shared/store/language.store";
 import { useSessionStore } from "@core/session/session.store";
+import { MIN_FOLLOWS } from "@features/onboarding/domain/follow-requirement";
+import { profileApi } from "@features/profile/data/profile.api";
 import { useApplyColorScheme } from "@shared/hooks/useTheme";
 import { useInitialUnreadCount } from "@features/notifications/ui/hooks/useInitialUnreadCount";
 import { useNotificationRealtime } from "@features/notifications/ui/hooks/useNotificationRealtime";
+import { useOnboardingStore } from "@features/onboarding/ui/store/onboarding.store";
 import { usePushDevice } from "@core/push/usePushDevice";
 import { usePushTapRouting } from "@features/notifications/ui/hooks/usePushTapRouting";
 import { useRealtimeSocket } from "@core/realtime/useRealtimeSocket";
@@ -116,6 +119,106 @@ function useAuthGate(ready: boolean) {
 }
 
 /**
+ * Sends an account that follows fewer than {@link MIN_FOLLOWS} people through
+ * the onboarding flow before it can reach the app.
+ *
+ * Written beside {@link useAuthGate} and subordinate to it: the check stands
+ * down while anything in `(auth)` is on screen. That is this app's version of
+ * the web's "not while the auth modal is open" rule, and it matters for the
+ * same reason — registering leaves the session in place on
+ * `/(auth)/verify-email`, and an account yanked off that screen loses the
+ * verification step. It is also what keeps two effects from racing to
+ * `replace` the same route, which has broken this layout before.
+ *
+ * Three more rules, all load-bearing:
+ *
+ * - **A failed profile request passes.** The gate is a requirement, not a
+ *   trap, and no account may be locked out of the app because one request did
+ *   not come back. Warned rather than swallowed: silence here made the whole
+ *   flow look like it had never been built.
+ * - **Finishing once settles it for good**, per user id. The check is
+ *   `< MIN_FOLLOWS`, so without that the account would be dragged back in the
+ *   moment it unfollowed somebody — which is nagging, not onboarding.
+ * - **The verdict is stamped with the id it was reached for**, so signing into
+ *   a second account in the same session re-checks rather than inheriting the
+ *   first one's answer.
+ *
+ * The request only happens for an account that has not finished — which is a
+ * handful of launches in its life — so the onboarding route reading the same
+ * profile again for its own count costs one extra round trip on exactly those
+ * launches, and buys a number that is also correct on a direct arrival.
+ */
+function useOnboardingGate(ready: boolean) {
+    const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
+    const userId = useSessionStore((s) => s.user?.id);
+    const username = useSessionStore((s) => s.user?.username);
+
+    const completedUserIds = useOnboardingStore((s) => s.completedUserIds);
+    const complete = useOnboardingStore((s) => s.complete);
+
+    const segments = useSegments();
+    const inAuthFlow = segments[0] === "(auth)";
+    const isOnOnboarding = segments[0] === "onboarding";
+
+    const isCompleted = !!userId && completedUserIds.includes(userId);
+
+    const skip =
+        !ready || !isAuthenticated || inAuthFlow || isCompleted || !username;
+
+    const [checked, setChecked] = useState<{
+        userId: string;
+        shouldRedirect: boolean;
+    } | null>(null);
+
+    useEffect(() => {
+        if (skip || !userId || !username) return;
+
+        let cancelled = false;
+
+        profileApi
+            .getProfile(username)
+            .then((profile) => {
+                if (cancelled) return;
+
+                if ((profile.followingCount ?? 0) >= MIN_FOLLOWS) {
+                    // Already met. Recorded so the check does not run again on
+                    // this device, with no interests — the flow was never
+                    // visited, and writing an empty pick through would wipe
+                    // fields chosen on an earlier one.
+                    complete(userId, []);
+                    setChecked({ userId, shouldRedirect: false });
+                } else {
+                    setChecked({ userId, shouldRedirect: true });
+                }
+            })
+            .catch((err: unknown) => {
+                if (cancelled) return;
+                // eslint-disable-next-line no-console
+                console.warn(
+                    "Onboarding check skipped — the profile request failed:",
+                    err,
+                );
+                setChecked({ userId, shouldRedirect: false });
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [skip, userId, username, complete]);
+
+    useEffect(() => {
+        if (skip || isOnOnboarding) return;
+        if (!checked || checked.userId !== userId) return;
+        if (!checked.shouldRedirect) return;
+
+        router.replace("/onboarding");
+        // `isOnOnboarding` is a dependency so that leaving the flow by any
+        // other route — a tapped push notification, say — is turned around
+        // rather than becoming a way past the gate.
+    }, [skip, isOnOnboarding, checked, userId]);
+}
+
+/**
  * The things that belong to a session rather than to a screen: one socket, the
  * listener that turns its events into a badge, the read that seeds that badge,
  * and the two halves of push — registering this phone, and opening what a
@@ -140,6 +243,7 @@ export default function RootLayout() {
     useApplyColorScheme();
 
     useAuthGate(ready);
+    useOnboardingGate(ready);
 
     useEffect(() => {
         /*

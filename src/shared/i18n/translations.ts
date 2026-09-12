@@ -219,6 +219,15 @@ const en = {
     "push.enable": "Turn on",
     "push.notNow": "Not now",
 
+    /*
+     * The one screen somebody sees instead of the app. It has to say what
+     * happened and what fixes it without a support page to link to.
+     */
+    "update.title": "Time to update",
+    "update.body":
+        "This version of TDN is no longer supported. Update it to carry on.",
+    "update.action": "Update TDN",
+
     "bookmarks.title": "Bookmarks",
     "bookmarks.subtitle": "Posts, comments & articles you saved",
     "bookmarks.tabPosts": "Posts",
@@ -953,6 +962,11 @@ const tr: Record<TranslationKey, string> = {
         "Beğeni, yanıt ve bahsedilmeleri TDN kapalıyken de kilit ekranında gör.",
     "push.enable": "Aç",
     "push.notNow": "Şimdi değil",
+
+    "update.title": "Güncelleme zamanı",
+    "update.body":
+        "TDN'nin bu sürümü artık desteklenmiyor. Devam etmek için güncelle.",
+    "update.action": "TDN'yi güncelle",
 
     "bookmarks.title": "Kaydedilenler",
     "bookmarks.subtitle": "Kaydettiğiniz gönderiler, yorumlar ve makaleler",

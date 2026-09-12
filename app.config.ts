@@ -42,6 +42,15 @@ const config: ExpoConfig = {
         "expo-router",
         "expo-secure-store",
         "expo-web-browser",
+        /*
+         * Listed for the config plugin rather than for the module: autolinking
+         * finds `expo-notifications` on its own, and this entry is where the
+         * Android notification icon and its accent colour are set. Both are
+         * left at their defaults until there is an icon set to draw them from
+         * — Android falls back to the app icon, which is also still the
+         * default one.
+         */
+        "expo-notifications",
         [
             /*
              * The splash is held open until the stored theme has been read, so
@@ -62,9 +71,21 @@ const config: ExpoConfig = {
         /**
          * Read through `expo-constants` rather than `process.env`, so the build
          * number the update gate sends is the one the binary was stamped with
-         * and cannot drift from `versionCode` above.
+         * and cannot drift from `versionCode` above. It is also what
+         * `POST /devices` reports as `appVersion`.
          */
         build: ANDROID_VERSION_CODE,
+
+        /*
+         * `eas.projectId` belongs here and is deliberately absent.
+         *
+         * `eas init` prints it and, for a static `app.json`, writes it in; a
+         * config written in TypeScript has to have it added by hand. A push
+         * token is minted against a project — Expo's service needs to know
+         * which one to deliver to — so until this exists the push adapter
+         * answers `null` and warns, and no device is registered. Nothing else
+         * about the app depends on it.
+         */
     },
 };
 

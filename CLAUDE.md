@@ -141,10 +141,15 @@ for directly from every screen: `SecureStoragePort`, `StoragePort`,
 one object; a test substitutes that object, and the iOS work is adapters beside
 the existing ones.
 
-A port with no adapter yet is deliberate, not an oversight — `PushPort` waits
-because Android 13+ needs a runtime permission, and *when* it is asked for
-decides whether most people enable push or most refuse, so that call belongs to
-a screen rather than to boot.
+`PushPort` is where that seam is doing the most work, because the permission it
+covers can only be asked for once: Android 13+ shows its dialog a single time
+per install, and a refusal takes `canAskAgain` away for good. So the port reads
+the permission (`getPermission`) separately from asking for it, boot only ever
+reads, and the ask belongs to a screen — the card at the top of the
+notifications list, above notifications that already exist. `core/push/` holds
+the rest: `POST /devices` at every launch, `DELETE /devices` before the session
+is discarded on sign-out, and the pure rule that turns a push payload into a
+destination.
 
 ## The API client (`src/core/api/client.ts`)
 

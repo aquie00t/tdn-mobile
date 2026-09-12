@@ -207,6 +207,18 @@ const en = {
     "notif.hoursAgo": "{{n}}h ago",
     "notif.daysAgo": "{{n}}d ago",
 
+    /*
+     * The permission card, which is shown once and dismissed for good. The
+     * copy has to carry the argument on its own: "even when TDN is closed" is
+     * the part that distinguishes it from the notifications already on screen
+     * behind it.
+     */
+    "push.promptTitle": "Turn on notifications",
+    "push.promptBody":
+        "Get likes, replies and mentions on your lock screen, even when TDN is closed.",
+    "push.enable": "Turn on",
+    "push.notNow": "Not now",
+
     "bookmarks.title": "Bookmarks",
     "bookmarks.subtitle": "Posts, comments & articles you saved",
     "bookmarks.tabPosts": "Posts",
@@ -935,6 +947,12 @@ const tr: Record<TranslationKey, string> = {
     "notif.minutesAgo": "{{n}}dk önce",
     "notif.hoursAgo": "{{n}}sa önce",
     "notif.daysAgo": "{{n}}g önce",
+
+    "push.promptTitle": "Bildirimleri aç",
+    "push.promptBody":
+        "Beğeni, yanıt ve bahsedilmeleri TDN kapalıyken de kilit ekranında gör.",
+    "push.enable": "Aç",
+    "push.notNow": "Şimdi değil",
 
     "bookmarks.title": "Kaydedilenler",
     "bookmarks.subtitle": "Kaydettiğiniz gönderiler, yorumlar ve makaleler",

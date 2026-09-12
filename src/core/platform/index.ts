@@ -1,10 +1,12 @@
 import { asyncStorage } from "./adapters/async-storage";
+import { expoPush } from "./adapters/expo-push";
 import { expoSecureStorage } from "./adapters/expo-secure-storage";
 import { netInfoNetwork } from "./adapters/netinfo-network";
 import { rnAppState } from "./adapters/rn-app-state";
 
 import type { AppStatePort } from "./app-state.port";
 import type { NetworkPort } from "./network.port";
+import type { PushPort } from "./push.port";
 import type { SecureStoragePort } from "./secure-storage.port";
 import type { StoragePort } from "./storage.port";
 
@@ -27,6 +29,7 @@ export interface Platform {
     storage: StoragePort;
     appState: AppStatePort;
     network: NetworkPort;
+    push: PushPort;
 }
 
 export const platform: Platform = {
@@ -34,4 +37,5 @@ export const platform: Platform = {
     storage: asyncStorage,
     appState: rnAppState,
     network: netInfoNetwork,
+    push: expoPush,
 };

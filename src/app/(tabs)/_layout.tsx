@@ -10,6 +10,7 @@ import {
     NotificationsIcon,
     ProfileIcon,
 } from "@shared/ui/icons/lucide";
+import { useNotificationStore } from "@features/notifications/ui/store/notification.store";
 import { useSessionStore } from "@core/session/session.store";
 
 /**
@@ -36,6 +37,8 @@ import { useSessionStore } from "@core/session/session.store";
 export default function TabsLayout() {
     const insets = useSafeAreaInsets();
     const avatarUrl = useSessionStore((s) => s.user?.avatarUrl);
+    // PR 6 drew this badge and wrote that nothing filled it yet. This is it.
+    const unreadCount = useNotificationStore((s) => s.unreadCount);
 
     return (
         <Tabs>
@@ -80,6 +83,7 @@ export default function TabsLayout() {
                         <TabBarButton
                             icon={NotificationsIcon}
                             label="nav.notifs"
+                            badge={unreadCount}
                         />
                     </TabTrigger>
 

@@ -103,6 +103,7 @@ src/features/<name>/
   domain/                 pure rules, only when there are any
   ui/screens|components|hooks|store
 src/shared/               ui primitives, theme, i18n, utils
+  data/                   the few endpoints more than one feature calls
 ```
 
 **The Domain layer is optional and usually absent**, exactly as Google's guide

@@ -3,6 +3,7 @@ import {
     Bell,
     Bookmark,
     Camera,
+    Check,
     CircleUser,
     Clock,
     Compass,
@@ -95,6 +96,9 @@ export const AddMediaIcon = themed(ImagePlus);
 export const CreateIcon = themed(Plus);
 export const CameraIcon = themed(Camera);
 export const CloseIcon = themed(X);
+
+/** A tick on something chosen — the onboarding picker's tiles. */
+export const CheckIcon = themed(Check);
 
 /** A post's actions, and the counters beside them. */
 export const BookmarkIcon = themed(Bookmark);

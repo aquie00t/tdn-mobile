@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 
 import { followTargetId } from "../../domain/follow-target";
 import { getErrorMessage } from "@shared/utils/error-handler";
-import { profileApi } from "../../data/profile.api";
+import { followApi } from "@shared/data/follow.api";
 import { useToastStore } from "@shared/store/toast.store";
 
 export interface UseFollowActionOptions {
@@ -53,8 +53,8 @@ export function useFollowAction({
         onChange(!wasFollowing);
 
         try {
-            if (wasFollowing) await profileApi.unfollow(targetId);
-            else await profileApi.follow(targetId);
+            if (wasFollowing) await followApi.unfollow(targetId);
+            else await followApi.follow(targetId);
         } catch (err) {
             onChange(wasFollowing);
             addToast({ type: "error", message: getErrorMessage(err) });

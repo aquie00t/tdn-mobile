@@ -20,6 +20,8 @@ import { useOnboardingStore } from "@features/onboarding/ui/store/onboarding.sto
 import { usePushDevice } from "@core/push/usePushDevice";
 import { usePushTapRouting } from "@features/notifications/ui/hooks/usePushTapRouting";
 import { useRealtimeSocket } from "@core/realtime/useRealtimeSocket";
+import { UpdateRequiredScreen } from "@features/update/ui/screens/UpdateRequiredScreen";
+import { useUpdateGate } from "@features/update/ui/hooks/useUpdateGate";
 import { useThemeStore } from "@shared/store/theme.store";
 
 /**
@@ -240,10 +242,19 @@ function SessionServices() {
 
 export default function RootLayout() {
     const ready = useBootstrap();
+    const update = useUpdateGate();
     useApplyColorScheme();
 
-    useAuthGate(ready);
-    useOnboardingGate(ready);
+    /*
+     * Both gates stand down while the app is blocked, and they have to: they
+     * route, and a build that is too old renders no navigator to route into.
+     * Calling `replace` against nothing is a warning in the log and a
+     * redirect that silently does not happen.
+     */
+    const canRoute = ready && !update.isBlocked;
+
+    useAuthGate(canRoute);
+    useOnboardingGate(canRoute);
 
     useEffect(() => {
         /*
@@ -268,6 +279,25 @@ export default function RootLayout() {
     // navigator before the theme is known is what puts the wrong colour on
     // screen underneath it.
     if (!ready) return null;
+
+    /*
+     * Instead of the navigator, not over it.
+     *
+     * This is the one screen in the app that replaces the tree rather than
+     * being routed to, and it is also the only terminal one: there is nothing
+     * behind it worth keeping and no way past it that should exist. Rendered
+     * here, `SessionServices` is never mounted either — a build nobody is
+     * allowed to use has no business holding a socket open or registering
+     * itself for notifications.
+     */
+    if (update.isBlocked) {
+        return (
+            <SafeAreaProvider>
+                <StatusBar style="auto" />
+                <UpdateRequiredScreen storeUrl={update.storeUrl} />
+            </SafeAreaProvider>
+        );
+    }
 
     return (
         <SafeAreaProvider>

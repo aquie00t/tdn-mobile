@@ -1,20 +1,6 @@
-import Constants from "expo-constants";
-import { Platform } from "react-native";
-
+import { APP_BUILD } from "@shared/constants/app-build";
 import type { DeviceDescriptor } from "./device-registration";
-
-/**
- * The build number this token is registered from.
- *
- * Read through `expo-constants` rather than `process.env`, for the same reason
- * the update gate does: `extra.build` is stamped from the same constant as
- * `versionCode`, so the two cannot drift.
- */
-function appVersion(): string | undefined {
-    const extra = Constants.expoConfig?.extra as { build?: number } | undefined;
-
-    return extra?.build === undefined ? undefined : String(extra.build);
-}
+import { Platform } from "react-native";
 
 /**
  * What this phone is, for `POST /devices`.
@@ -33,7 +19,10 @@ export function deviceDescriptor(locale: string): DeviceDescriptor {
         // a constant because this is the whole of the iOS difference here, and
         // it is cheaper than remembering to come back for it.
         platform: Platform.OS === "ios" ? "IOS" : "ANDROID",
-        appVersion: appVersion(),
+        // A string here, a number in the update gate's query: the two
+        // endpoints take it differently, and `APP_BUILD` is the one number
+        // both are formatting.
+        appVersion: APP_BUILD === undefined ? undefined : String(APP_BUILD),
         locale,
     };
 }

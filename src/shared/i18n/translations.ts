@@ -309,7 +309,15 @@ const en = {
     "search.noResults": "No profiles found.",
 
     "explore.title": "Explore",
-    "explore.searchPlaceholder": "Search tags...",
+    /*
+     * One box searches both here, where the web has a tag search on this page
+     * and an account search in a header this app does not have.
+     */
+    "explore.searchPlaceholder": "Search people and tags...",
+    "explore.sectionAccounts": "People",
+    "explore.sectionTags": "Tags",
+    "explore.noResults": 'Nothing found for "{{query}}"',
+    "explore.searchHint": "Try a different name, handle or tag.",
     "explore.noTagsFound": 'No tags found for "{{query}}"',
     "explore.trendingTopics": "Trending Topics",
     "explore.lastDays": "last 7 days",
@@ -1045,7 +1053,11 @@ const tr: Record<TranslationKey, string> = {
     "search.noResults": "Profil bulunamadı.",
 
     "explore.title": "Keşfet",
-    "explore.searchPlaceholder": "Etiket ara...",
+    "explore.searchPlaceholder": "Kişi veya etiket ara...",
+    "explore.sectionAccounts": "Kişiler",
+    "explore.sectionTags": "Etiketler",
+    "explore.noResults": '"{{query}}" için sonuç bulunamadı',
+    "explore.searchHint": "Başka bir isim, kullanıcı adı veya etiket dene.",
     "explore.noTagsFound": '"{{query}}" için etiket bulunamadı',
     "explore.trendingTopics": "Trend Konular",
     "explore.lastDays": "son 7 gün",

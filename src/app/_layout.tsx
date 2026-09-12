@@ -12,6 +12,9 @@ import { registerSessionExpiredHandler } from "@core/api/client";
 import { useLanguageStore } from "@shared/store/language.store";
 import { useSessionStore } from "@core/session/session.store";
 import { useApplyColorScheme } from "@shared/hooks/useTheme";
+import { useInitialUnreadCount } from "@features/notifications/ui/hooks/useInitialUnreadCount";
+import { useNotificationRealtime } from "@features/notifications/ui/hooks/useNotificationRealtime";
+import { useRealtimeSocket } from "@core/realtime/useRealtimeSocket";
 import { useThemeStore } from "@shared/store/theme.store";
 
 /**
@@ -110,9 +113,25 @@ function useAuthGate(ready: boolean) {
     }, [ready, isAuthenticated, inAuthFlow]);
 }
 
+/**
+ * The things that belong to a session rather than to a screen: one socket, the
+ * listener that turns its events into a badge, and the read that seeds that
+ * badge.
+ *
+ * They live here rather than on the notifications tab, because a socket that
+ * only exists while a tab is open is a socket that misses everything else.
+ */
+function SessionServices() {
+    useRealtimeSocket();
+    useNotificationRealtime();
+    useInitialUnreadCount();
+    return null;
+}
+
 export default function RootLayout() {
     const ready = useBootstrap();
     useApplyColorScheme();
+
     useAuthGate(ready);
 
     useEffect(() => {
@@ -141,6 +160,16 @@ export default function RootLayout() {
 
     return (
         <SafeAreaProvider>
+            {/*
+             * Mounted as a child so it starts only once the splash has lifted.
+             *
+             * Called from the layout body they would run on the first render,
+             * where the session store may already say somebody is signed in
+             * while `loadTokens()` has not resolved — the window CLAUDE.md
+             * warns about, in which every request goes out unauthenticated and
+             * the socket has no token to send.
+             */}
+            <SessionServices />
             {/*
              * "auto" rather than "light". `setColorScheme` writes through
              * React Native's `Appearance`, so the bar follows the theme on its

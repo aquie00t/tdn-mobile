@@ -106,6 +106,7 @@ rather than edits scattered through features.
 - **Offline.** A lost *response* is routine, and the client cannot tell it from
   a lost request. `Idempotency-Key` on the seven writes that support it is what
   makes the retry safe (`docs/idempotency.md` in the API repo).
-- **Deep links.** A push tap routes from `data.type` plus whichever ids came
-  with it, and OAuth returns on the `tdn://` scheme. Both are route design, not
-  something bolted on later.
+- **Deep links.** A push tap routes from whichever ids came with it — the
+  payload carries no `referenceId` and no handle, so the ids decide and the
+  type turns out not to be read at all — and OAuth returns on the `tdn://`
+  scheme. Both are route design, not something bolted on later.

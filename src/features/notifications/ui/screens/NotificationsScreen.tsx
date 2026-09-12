@@ -7,6 +7,7 @@ import { ErrorState } from "@shared/ui/ErrorState";
 import type { Notification } from "../../data/notification.types";
 import { NotificationCard } from "../components/NotificationCard";
 import { notificationApi } from "../../data/notification.api";
+import { PushPromptCard } from "../components/PushPromptCard";
 import { Screen } from "@shared/ui/Screen";
 import { ScreenHeader } from "@shared/layout/ScreenHeader";
 import { Spinner } from "@shared/ui/Spinner";
@@ -14,6 +15,7 @@ import { Text } from "@shared/ui/Text";
 import { useI18n } from "@shared/hooks/useI18n";
 import { useNotifications } from "../hooks/useNotifications";
 import { useNotificationStore } from "../store/notification.store";
+import { usePushPermissionPrompt } from "../hooks/usePushPermissionPrompt";
 
 /**
  * A composite key, because the API sends no id.
@@ -41,6 +43,8 @@ export function NotificationsScreen() {
         hasMore,
         loadMore,
     } = useNotifications();
+
+    const pushPrompt = usePushPermissionPrompt();
 
     /*
      * Read on every focus, not once on mount.
@@ -124,6 +128,25 @@ export function NotificationsScreen() {
                     data={notifications}
                     keyExtractor={keyOf}
                     renderItem={renderItem}
+                    /*
+                     * Above notifications that already exist, and only then.
+                     *
+                     * The card is the app's one chance to ask for the
+                     * notification permission — Android shows its dialog once
+                     * per install — so it is spent where the question explains
+                     * itself: on top of the things it is offering to put on a
+                     * lock screen. On an empty list there is nothing to point
+                     * at, and the safe answer to a request about nothing is no.
+                     */
+                    ListHeaderComponent={
+                        pushPrompt.isVisible && notifications.length > 0 ? (
+                            <PushPromptCard
+                                isAsking={pushPrompt.isAsking}
+                                onEnable={() => void pushPrompt.enable()}
+                                onDismiss={pushPrompt.dismiss}
+                            />
+                        ) : null
+                    }
                     onEndReached={() => void loadMore()}
                     onEndReachedThreshold={0.5}
                     windowSize={7}

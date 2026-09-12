@@ -14,6 +14,8 @@ import { useSessionStore } from "@core/session/session.store";
 import { useApplyColorScheme } from "@shared/hooks/useTheme";
 import { useInitialUnreadCount } from "@features/notifications/ui/hooks/useInitialUnreadCount";
 import { useNotificationRealtime } from "@features/notifications/ui/hooks/useNotificationRealtime";
+import { usePushDevice } from "@core/push/usePushDevice";
+import { usePushTapRouting } from "@features/notifications/ui/hooks/usePushTapRouting";
 import { useRealtimeSocket } from "@core/realtime/useRealtimeSocket";
 import { useThemeStore } from "@shared/store/theme.store";
 
@@ -115,16 +117,21 @@ function useAuthGate(ready: boolean) {
 
 /**
  * The things that belong to a session rather than to a screen: one socket, the
- * listener that turns its events into a badge, and the read that seeds that
- * badge.
+ * listener that turns its events into a badge, the read that seeds that badge,
+ * and the two halves of push — registering this phone, and opening what a
+ * tapped notification points at.
  *
  * They live here rather than on the notifications tab, because a socket that
- * only exists while a tab is open is a socket that misses everything else.
+ * only exists while a tab is open is a socket that misses everything else —
+ * and a phone that only registers for push once somebody visits that tab is a
+ * phone that never registers.
  */
 function SessionServices() {
     useRealtimeSocket();
     useNotificationRealtime();
     useInitialUnreadCount();
+    usePushDevice();
+    usePushTapRouting();
     return null;
 }
 

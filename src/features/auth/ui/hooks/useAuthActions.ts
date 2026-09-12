@@ -3,6 +3,7 @@ import { useCallback } from "react";
 
 import { authApi } from "../../data/auth.api";
 import { clearTokens, setTokens } from "@core/session/tokens";
+import { retireDevice } from "@core/push/device-registration";
 import { useSessionStore } from "@core/session/session.store";
 import { useAuthFlowStore } from "../store/auth-flow.store";
 import type { LoginResponse } from "../../data/auth.types";
@@ -68,7 +69,22 @@ export function useAuthActions() {
     );
 
     const signOut = useCallback(async () => {
-        // Told to the server first, while the token still exists to name. A
+        /*
+         * Push first, and specifically before `logout`.
+         *
+         * Both requests need the access token, and `logout` is the one that
+         * retires it — a `DELETE /devices` behind it would answer 401, then be
+         * replayed against a refresh token that has just been revoked too, and
+         * the session-expired handler would fire in the middle of a sign-out
+         * that was going fine.
+         *
+         * It has to happen at all because a signed-out phone that is still
+         * registered keeps receiving the previous account's notifications,
+         * which is not a bug anybody reports as a bug.
+         */
+        await retireDevice();
+
+        // Told to the server next, while the token still exists to name. A
         // failure here is logged and not surfaced: the phone is signing out
         // either way, and refusing to would strand somebody on an account they
         // asked to leave.

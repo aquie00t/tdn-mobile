@@ -3,6 +3,7 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 
 import type { PushPermission, PushPort } from "../push.port";
+import { reportError } from "@shared/utils/report-error";
 
 /**
  * The one Android channel.
@@ -114,11 +115,11 @@ export const expoPush: PushPort = {
         if (!id) {
             // A build-configuration fact rather than a runtime failure, and it
             // is the state of this repo today: there is no EAS project yet.
-            // Warned rather than thrown, because push being unavailable is not
-            // a reason for the app not to start.
-            // eslint-disable-next-line no-console
-            console.warn(
-                "Push token skipped — no extra.eas.projectId in the app config.",
+            // Reported rather than thrown, because push being unavailable is
+            // not a reason for the app not to start.
+            reportError(
+                "push",
+                "Token skipped — no extra.eas.projectId in the app config.",
             );
             return null;
         }

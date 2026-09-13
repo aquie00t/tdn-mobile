@@ -335,6 +335,15 @@ client has to mock crypto.
 - Mutations are **optimistic**: snapshot, apply, roll back in `catch`. Blocking
   and the account forms in Settings are the exceptions, and `docs/roadmap.md`
   says why.
+- **No toasts, and the reader is not shown our errors.** A failed background
+  action rolls back or leaves its composer open, and the failure goes to
+  `reportError` (`src/shared/utils/report-error.ts`), which logs in a dev build
+  — LogBox raises it — and does nothing in a release build. What the reader
+  *is* shown, inline, is an answer they must act on: a wrong password, a taken
+  username, an expired code, a deleted post, a refused file, a rate limit.
+  `isOurFailure` / `readerFacingMessage` draw the line — the network, timeouts
+  and 5xx are ours and become "could not load"; the server's 4xx answers are
+  shown as it wrote them.
 - No barrel `index.ts` files, except `core/platform/index.ts`, which is the
   composition root.
 

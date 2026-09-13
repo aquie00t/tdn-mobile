@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { blockApi } from "../data/block.api";
-import { getErrorMessage } from "../utils/error-handler";
-import { useToastStore } from "../store/toast.store";
+import { reportError } from "../utils/report-error";
 
 /**
  * Blocking and unblocking, for the profile header and the Settings list.
@@ -11,8 +10,9 @@ import { useToastStore } from "../store/toast.store";
  * `docs/roadmap.md` records. A like flips one icon and a failed one flips it
  * back; a block hides an account from a reader who then believes it worked,
  * and nothing on screen could tell them otherwise, because the timeline is
- * empty either way. So the request is awaited, the caller is told the outcome,
- * and a failure is toasted rather than rolled back out of sight.
+ * empty either way. So the request is awaited and the caller is told the
+ * outcome: on success the screen changes, on failure it stays as it was and
+ * the control is offered again. The reason goes to `reportError`.
  *
  * `pendingId` rather than a boolean: the Settings list draws an unblock button
  * per row, and one shared flag would grey out all of them at once.
@@ -22,7 +22,6 @@ import { useToastStore } from "../store/toast.store";
  */
 export function useBlockAction() {
     const [pendingId, setPendingId] = useState<string | null>(null);
-    const addToast = useToastStore((s) => s.addToast);
 
     /*
      * The guard against a second request, kept in a ref rather than read from
@@ -38,12 +37,10 @@ export function useBlockAction() {
             action: (id: string) => Promise<unknown>,
         ): Promise<boolean> => {
             if (!targetId) {
-                // Loud rather than swallowed, as in `useFollowAction`: an
-                // empty id is not dropped from a body the way `undefined` is,
-                // and would reach the server as a validation failure the
-                // reader never asked for.
-                // eslint-disable-next-line no-console
-                console.warn("Block skipped — no target id was given.");
+                // An empty id is not dropped from a body the way `undefined`
+                // is, and would reach the server as a validation failure the
+                // reader never asked for. A caller passing nothing has a bug.
+                reportError("block", "Skipped — no target id was given.");
                 return false;
             }
 
@@ -56,14 +53,14 @@ export function useBlockAction() {
                 await action(targetId);
                 return true;
             } catch (err) {
-                addToast({ type: "error", message: getErrorMessage(err) });
+                reportError("block", err);
                 return false;
             } finally {
                 inFlightRef.current = false;
                 setPendingId(null);
             }
         },
-        [addToast],
+        [],
     );
 
     const block = useCallback(

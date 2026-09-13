@@ -1,11 +1,11 @@
 import { useCallback, useRef, useState } from "react";
 
 import { feedApi } from "../../data/feed.api";
-import { getErrorMessage } from "@shared/utils/error-handler";
+import { getErrorMessage, isOurFailure } from "@shared/utils/error-handler";
 import { newIdempotencyKey } from "@core/api/idempotency";
 import type { Post } from "../../data/feed.types";
+import { reportError } from "@shared/utils/report-error";
 import { useMediaSelection } from "@shared/hooks/useMediaSelection";
-import { useToastStore } from "@shared/store/toast.store";
 
 /** The API's own cap on a post body. Mirrored so its 400 is unreachable. */
 export const POST_MAX_LENGTH = 300;
@@ -37,10 +37,14 @@ export function usePostComposer({
     onPosted,
     quotedPostId,
 }: UsePostComposerOptions) {
-    const addToast = useToastStore((s) => s.addToast);
-
-    const [content, setContent] = useState("");
+    const [content, setContentState] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    /**
+     * The server's answer, when it is one the writer has to act on — a file
+     * that was refused, a rate limit, a body it would not take. Our own
+     * failures leave this empty; see `submit`.
+     */
+    const [error, setError] = useState<string | null>(null);
     const media = useMediaSelection();
 
     /**
@@ -53,6 +57,12 @@ export function usePostComposer({
      * attached to the first, and re-sending them is `MediaNotOwnedError`.
      */
     const idempotencyKey = useRef<string | null>(null);
+
+    /** Typing retracts the answer to the previous attempt. */
+    const setContent = useCallback((next: string) => {
+        setContentState(next);
+        setError(null);
+    }, []);
 
     const trimmed = content.trim();
     const isTooLong = trimmed.length > POST_MAX_LENGTH;
@@ -68,6 +78,7 @@ export function usePostComposer({
 
         idempotencyKey.current ??= newIdempotencyKey();
         setIsSubmitting(true);
+        setError(null);
 
         try {
             const mediaUrls = await media.upload();
@@ -81,16 +92,32 @@ export function usePostComposer({
             );
 
             idempotencyKey.current = null;
-            setContent("");
+            setContentState("");
             media.clear();
             onPosted(post);
         } catch (err) {
+            /*
+             * Nothing is lost either way: the composer stays open with the
+             * text in it, the send button comes back, and the next tap retries
+             * under the same key.
+             *
+             * What is *said* depends on whose failure it was. Ours — the
+             * network, a 500 — says nothing; the reason goes to `reportError`.
+             * The server's answer is shown under the field, because the writer
+             * has to act on it: a refused file has just been taken out of the
+             * picker by `handleFailure`, and without a sentence it would simply
+             * vanish; a rate limit or a rejected body would fail the same way
+             * on every tap with nothing saying why.
+             */
             media.handleFailure(err);
-            addToast({ type: "error", message: getErrorMessage(err) });
+            reportError("post.create", err);
+
+            const message = getErrorMessage(err);
+            if (!isOurFailure(message)) setError(message);
         } finally {
             setIsSubmitting(false);
         }
-    }, [canSubmit, media, trimmed, quotedPostId, onPosted, addToast]);
+    }, [canSubmit, media, trimmed, quotedPostId, onPosted]);
 
     return {
         content,
@@ -100,6 +127,7 @@ export function usePostComposer({
         isTooLong,
         canSubmit,
         submit,
+        error,
         isQuote: Boolean(quotedPostId),
     };
 }

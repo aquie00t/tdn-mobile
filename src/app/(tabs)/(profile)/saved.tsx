@@ -14,6 +14,7 @@ import { Screen } from "@shared/ui/Screen";
 import { ScreenHeader } from "@shared/layout/ScreenHeader";
 import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
+import { readerFacingMessage } from "@shared/utils/report-error";
 import { cn } from "@shared/ui/cn";
 import { useBookmarks } from "@shared/hooks/useBookmarks";
 import { useI18n } from "@shared/hooks/useI18n";
@@ -120,8 +121,8 @@ export default function SavedRoute() {
         if (loadMoreError) {
             return (
                 <View className="items-center gap-2 py-4">
-                    <Text size="caption" tone="danger">
-                        {loadMoreError}
+                    <Text size="caption" tone="subtle">
+                        {readerFacingMessage(loadMoreError)}
                     </Text>
                     <Button
                         label={t("postList.tryAgain")}

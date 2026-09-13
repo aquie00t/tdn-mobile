@@ -4,7 +4,7 @@ import { BOT_PAGE_SIZE, botApi } from "../../data/bot.api";
 import type { BotProfile } from "../../data/bot.types";
 import type { CategoryValue } from "@shared/constants/categories";
 import { getErrorMessage } from "@shared/utils/error-handler";
-import { useToastStore } from "@shared/store/toast.store";
+import { reportError } from "@shared/utils/report-error";
 
 /**
  * The bots publishing in the chosen fields, newest page appended.
@@ -12,8 +12,6 @@ import { useToastStore } from "@shared/store/toast.store";
  * @param categories - The fields picked in step one
  */
 export function useOnboardingSuggestions(categories: CategoryValue[]) {
-    const addToast = useToastStore((s) => s.addToast);
-
     /**
      * The values, not the array. A caller re-rendering hands over a new array
      * with the same contents, and an effect keyed on that identity would
@@ -121,11 +119,12 @@ export function useOnboardingSuggestions(categories: CategoryValue[]) {
                 setHasMore(page.length === BOT_PAGE_SIZE);
             })
             .catch((err: unknown) => {
-                // Toasted rather than raised into `error`: the screen renders
+                // Reported rather than raised into `error`: the screen renders
                 // the error state *instead of* the list, and losing a screen
                 // of bots the reader may already have followed in order to
-                // report a failed second page is the wrong trade.
-                addToast({ type: "error", message: getErrorMessage(err) });
+                // report a failed second page is the wrong trade. "Show more"
+                // stays, which is the retry.
+                reportError("onboarding.suggestions.more", err);
             })
             .finally(() => {
                 // Unconditional, unlike the first page: nothing else raises
@@ -133,7 +132,7 @@ export function useOnboardingSuggestions(categories: CategoryValue[]) {
                 // disable "show more" for good.
                 setIsLoadingMore(false);
             });
-    }, [accounts.length, addToast, hasMore, isLoading, isLoadingMore, picked]);
+    }, [accounts.length, hasMore, isLoading, isLoadingMore, picked]);
 
     return {
         accounts,

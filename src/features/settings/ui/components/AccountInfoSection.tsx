@@ -5,6 +5,7 @@ import { Button } from "@shared/ui/Button";
 import { SettingsSection } from "./SettingsSection";
 import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
+import { readerFacingMessage } from "@shared/utils/report-error";
 import { useI18n } from "@shared/hooks/useI18n";
 
 export interface AccountInfoSectionProps {
@@ -42,8 +43,8 @@ export function AccountInfoSection({
 
             {error && !isLoading && (
                 <View className="items-start gap-2">
-                    <Text size="small" tone="danger">
-                        {error}
+                    <Text size="small" tone="subtle">
+                        {readerFacingMessage(error)}
                     </Text>
                     <Button
                         label={t("postList.tryAgain")}

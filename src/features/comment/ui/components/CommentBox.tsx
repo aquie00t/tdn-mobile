@@ -5,8 +5,9 @@ import { Avatar } from "@shared/ui/Avatar";
 import { COMMENT_MAX_LENGTH } from "../../data/comment.types";
 import type { Comment, CommentTarget } from "../../data/comment.types";
 import { commentApi } from "../../data/comment.api";
-import { getErrorMessage } from "@shared/utils/error-handler";
+import { getErrorMessage, isOurFailure } from "@shared/utils/error-handler";
 import { MediaPicker } from "@shared/ui/MediaPicker";
+import { reportError } from "@shared/utils/report-error";
 import { useMediaSelection } from "@shared/hooks/useMediaSelection";
 import { newIdempotencyKey } from "@core/api/idempotency";
 import { AddMediaIcon, ProfileIcon, SendIcon } from "@shared/ui/icons/lucide";
@@ -14,7 +15,6 @@ import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
 import { useI18n } from "@shared/hooks/useI18n";
 import { useSessionStore } from "@core/session/session.store";
-import { useToastStore } from "@shared/store/toast.store";
 
 export interface CommentBoxProps {
     target: CommentTarget;
@@ -58,12 +58,13 @@ export function CommentBox({
     isInline = false,
 }: CommentBoxProps) {
     const { t } = useI18n();
-    const addToast = useToastStore((s) => s.addToast);
     const avatarUrl = useSessionStore((s) => s.user?.avatarUrl);
 
     const [content, setContent] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inputHeight, setInputHeight] = useState(0);
+    /** The server's answer, when it is one the writer has to act on. */
+    const [error, setError] = useState<string | null>(null);
 
     /**
      * One key for one attempt to post *this* comment, held across retries.
@@ -89,6 +90,7 @@ export function CommentBox({
 
         idempotencyKey.current ??= newIdempotencyKey();
         setIsSubmitting(true);
+        setError(null);
 
         try {
             const mediaUrls = await media.upload();
@@ -105,11 +107,19 @@ export function CommentBox({
             media.clear();
             onCommentCreated(comment);
         } catch (err) {
-            // The key is deliberately kept. A failure is exactly the case the
-            // key exists for, and minting a new one on the retry would post
+            // Nothing is lost: the text stays in the box and the send control
+            // comes back. The key is deliberately kept — a failure is exactly
+            // the case it exists for, and a new one on the retry would post
             // the comment twice if the first request had in fact arrived.
+            //
+            // Our failure says nothing; the server's answer — a refused file,
+            // which `handleFailure` has just taken out of the picker, or a
+            // rate limit — is shown under the box, as in the post composer.
             media.handleFailure(err);
-            addToast({ type: "error", message: getErrorMessage(err) });
+            reportError("comment.create", err);
+
+            const message = getErrorMessage(err);
+            if (!isOurFailure(message)) setError(message);
         } finally {
             setIsSubmitting(false);
         }
@@ -139,7 +149,11 @@ export function CommentBox({
                 >
                     <TextInput
                         value={content}
-                        onChangeText={setContent}
+                        onChangeText={(next) => {
+                            setContent(next);
+                            // Typing retracts the answer to the last attempt.
+                            setError(null);
+                        }}
                         placeholder={placeholder ?? t("commentBox.placeholder")}
                         multiline
                         // Grows with the text and then scrolls, so a long
@@ -226,6 +240,12 @@ export function CommentBox({
                         disabled={isSubmitting}
                     />
                 </View>
+            )}
+
+            {error && (
+                <Text size="caption" tone="danger" className="pl-10 pt-1">
+                    {error}
+                </Text>
             )}
 
             {trimmed.length > COUNTER_THRESHOLD && (

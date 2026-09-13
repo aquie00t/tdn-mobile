@@ -110,6 +110,11 @@ Then the primitives the first screens actually need: `Screen`, `Text`,
 wait for the screen that uses them — a component designed without a call site
 is usually designed wrong.
 
+`Toast` was later removed. A box at the bottom of the screen announcing a
+failure told the reader about our errors; failures now roll back quietly and
+reach the developer through `reportError`, and the only errors shown are the
+answers a reader has to act on, inline. CLAUDE.md carries the rule.
+
 `ErrorState` and `EmptyState` are primitives from the start on purpose. The
 rule is that every list renders explicit loading, error-with-retry and empty
 states and never silently renders nothing, and on the web that rule is kept by

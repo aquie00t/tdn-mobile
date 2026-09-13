@@ -11,13 +11,11 @@ import { authApi } from "../../data/auth.api";
 import { getErrorMessage } from "@shared/utils/error-handler";
 import { useAuthFlowStore } from "../store/auth-flow.store";
 import { useI18n } from "@shared/hooks/useI18n";
-import { useToastStore } from "@shared/store/toast.store";
 
 export function ResetPasswordScreen() {
     const { t } = useI18n();
     const router = useRouter();
     const resetEmail = useAuthFlowStore((s) => s.resetEmail);
-    const addToast = useToastStore((s) => s.addToast);
 
     const [otp, setOtp] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -44,10 +42,11 @@ export function ResetPasswordScreen() {
             });
             // The password is changed but no session was issued, so this ends
             // at the password screen with the account already named rather
-            // than signing anybody in.
-            addToast({ type: "success", message: t("auth.resetSuccess") });
+            // than signing anybody in. Arriving there is the confirmation.
             router.replace("/(auth)/login");
         } catch (err) {
+            // A wrong or expired code is an answer the reader has to act on,
+            // so it stays — inline, under the field, not in a box.
             setError(getErrorMessage(err));
         } finally {
             setIsLoading(false);

@@ -14,6 +14,7 @@ import { Screen } from "@shared/ui/Screen";
 import { CreateIcon } from "@shared/ui/icons/lucide";
 import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
+import { readerFacingMessage } from "@shared/utils/report-error";
 import { useFeed } from "../hooks/useFeed";
 import { useI18n } from "@shared/hooks/useI18n";
 
@@ -237,7 +238,7 @@ function FeedFooter({
         return (
             <View className="items-center gap-3 py-6">
                 <Text size="small" tone="subtle">
-                    {loadMoreError}
+                    {readerFacingMessage(loadMoreError)}
                 </Text>
                 <Button
                     label={t("postList.tryAgain")}

@@ -3,9 +3,8 @@ import { useEffect, useRef } from "react";
 import { BASE_URL } from "../api/client";
 import { getAccessToken } from "../session/tokens";
 import { platform } from "../platform";
-import { translate } from "@shared/i18n/translate";
+import { reportError } from "@shared/utils/report-error";
 import { useSessionStore } from "../session/session.store";
-import { useToastStore } from "@shared/store/toast.store";
 
 /**
  * The API registers its realtime routes under the same `/api/v1` prefix as
@@ -103,19 +102,25 @@ export function useRealtimeSocket(): void {
         };
 
         /**
-         * The next attempt, or the notice that there will not be one.
+         * The next attempt, or the end of trying.
          *
          * Shared by the two paths that need it: a connection that dropped, and
          * a dial that had no token to send yet.
+         *
+         * Giving up is not announced. The tab badge simply stops moving on its
+         * own until the app comes back to the foreground or the network
+         * returns, both of which reset the budget and dial again — and push
+         * still covers the closed app. Telling the reader would be telling
+         * them about our socket.
          */
         function scheduleRetry(): void {
             if (!isActiveRef.current) return;
 
             if (retryCountRef.current >= MAX_RETRIES) {
-                useToastStore.getState().addToast({
-                    type: "info",
-                    message: translate("common.notificationsUnavailable"),
-                });
+                reportError(
+                    "realtime",
+                    `Gave up after ${MAX_RETRIES} attempts to connect.`,
+                );
                 return;
             }
 

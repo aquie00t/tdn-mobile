@@ -182,6 +182,17 @@ export function ComposeScreen() {
                             {composer.content.trim().length} / {POST_MAX_LENGTH}
                         </Text>
                     )}
+
+                    {/*
+                     * Only an answer the writer has to act on — a refused file,
+                     * a rate limit. A failure of ours leaves this empty and
+                     * the text where it was.
+                     */}
+                    {composer.error && (
+                        <Text size="small" tone="danger">
+                            {composer.error}
+                        </Text>
+                    )}
                 </ScrollView>
             </KeyboardAvoidingView>
         </Screen>

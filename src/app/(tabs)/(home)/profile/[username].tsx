@@ -44,6 +44,18 @@ export default function ProfileRoute() {
         void fetchPosts();
     }, [fetchProfile, fetchPosts]);
 
+    /*
+     * After a block or an unblock, both reads run again rather than a flag
+     * being patched. A block drops both follows, zeroes the counts and
+     * empties the timeline; lifting one brings the posts back, and may still
+     * leave the other side's block standing. The server is the only thing
+     * that knows all of that at once.
+     */
+    const handleBlockChange = useCallback(() => {
+        void fetchProfile();
+        void fetchPosts();
+    }, [fetchProfile, fetchPosts]);
+
     const renderItem = useCallback(
         ({ item }: { item: Post }) => (
             <PostCard {...item} onUpdated={posts.replacePost} />
@@ -89,7 +101,11 @@ export default function ProfileRoute() {
                     maxToRenderPerBatch={5}
                     ListHeaderComponent={
                         <>
-                            <ProfileHeader profile={profile} onPatch={patch} />
+                            <ProfileHeader
+                                profile={profile}
+                                onPatch={patch}
+                                onBlockChange={handleBlockChange}
+                            />
 
                             {hasBlockRelation && (
                                 <BlockedNotice

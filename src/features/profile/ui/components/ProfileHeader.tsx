@@ -3,11 +3,13 @@ import { Pressable, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { Avatar } from "@shared/ui/Avatar";
+import { BlockToggle } from "./BlockToggle";
 import { Button } from "@shared/ui/Button";
 import type { Profile } from "../../data/profile.types";
 import { ProfileIcon } from "@shared/ui/icons/lucide";
 import { RichText } from "@shared/ui/RichText";
 import { Text } from "@shared/ui/Text";
+import { followTargetId } from "../../domain/follow-target";
 import { useFollowAction } from "../hooks/useFollowAction";
 import { useI18n } from "@shared/hooks/useI18n";
 
@@ -15,6 +17,16 @@ export interface ProfileHeaderProps {
     profile: Profile;
     /** Applied to the copy the screen holds, so the counts stay in step. */
     onPatch: (changes: Partial<Profile>) => void;
+    /**
+     * Called once a block or an unblock has been confirmed. The screen
+     * re-reads the profile *and* the timeline: a block drops both follows,
+     * zeroes the counts and empties the posts, and an unblock brings the posts
+     * back — none of which one flag could say.
+     *
+     * Optional because your own profile has nothing to block; without it the
+     * control is not drawn.
+     */
+    onBlockChange?: () => void;
 }
 
 const BANNER = { width: "100%", height: "100%" } as const;
@@ -40,20 +52,23 @@ function formatJoined(iso: string, locale: string): string {
  *
  * **The two directions of a block render differently, and that is the point of
  * separating them here rather than later.** `isBlocked` — you blocked them —
- * offers the way out, so the header keeps a control. `isBlockedBy` — they
- * blocked you — is a wall, and offering anything would be offering something
- * that cannot work. When both are set the unblock control wins, because it is
- * the useful one; the server keeps the other side's row either way.
- *
- * Blocking itself is PR 22. What is here is the *state*, drawn correctly from
- * the start, which is the part that is expensive to retrofit.
+ * offers the way out, so the header keeps the unblock control. `isBlockedBy` —
+ * they blocked you — is a wall, and offering anything would be offering
+ * something that cannot work. When both are set the unblock control wins,
+ * because it is the useful one; the server keeps the other side's row either
+ * way, which the re-read after unblocking then shows.
  */
-export function ProfileHeader({ profile, onPatch }: ProfileHeaderProps) {
+export function ProfileHeader({
+    profile,
+    onPatch,
+    onBlockChange,
+}: ProfileHeaderProps) {
     const { t, locale } = useI18n();
     const router = useRouter();
 
     const isBlocked = profile.isBlocked === true;
     const isBlockedBy = profile.isBlockedBy === true && !isBlocked;
+    const targetId = followTargetId(profile);
 
     const { toggle, isLoading } = useFollowAction({
         account: profile,
@@ -110,25 +125,46 @@ export function ProfileHeader({ profile, onPatch }: ProfileHeaderProps) {
                      * would invite a tap and explain nothing.
                      */}
                     {profile.isMe ? null : isBlocked ? (
-                        <Text size="small" tone="subtle" className="pb-2">
-                            {t("block.youBlockedTitle", {
-                                username: profile.username,
-                            })}
-                        </Text>
+                        onBlockChange ? (
+                            <View className="pb-1">
+                                <BlockToggle
+                                    targetId={targetId}
+                                    username={profile.username}
+                                    isBlocked
+                                    onChange={onBlockChange}
+                                />
+                            </View>
+                        ) : (
+                            <Text size="small" tone="subtle" className="pb-2">
+                                {t("block.youBlockedTitle", {
+                                    username: profile.username,
+                                })}
+                            </Text>
+                        )
                     ) : isBlockedBy ? null : (
-                        <Button
-                            label={
-                                profile.isFollowing
-                                    ? t("profile.following")
-                                    : t("profile.follow")
-                            }
-                            size="sm"
-                            variant={
-                                profile.isFollowing ? "outline" : "primary"
-                            }
-                            loading={isLoading}
-                            onPress={() => void toggle()}
-                        />
+                        <View className="flex-row items-center gap-2 pb-1">
+                            <Button
+                                label={
+                                    profile.isFollowing
+                                        ? t("profile.following")
+                                        : t("profile.follow")
+                                }
+                                size="sm"
+                                variant={
+                                    profile.isFollowing ? "outline" : "primary"
+                                }
+                                loading={isLoading}
+                                onPress={() => void toggle()}
+                            />
+                            {onBlockChange && (
+                                <BlockToggle
+                                    targetId={targetId}
+                                    username={profile.username}
+                                    isBlocked={false}
+                                    onChange={onBlockChange}
+                                />
+                            )}
+                        </View>
                     )}
                 </View>
 

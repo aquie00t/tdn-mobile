@@ -11,9 +11,12 @@ import {
 } from "@shared/ui/icons/lucide";
 import type { Comment } from "../../data/comment.types";
 import type { LucideIcon } from "lucide-react-native";
+import { ReportButton } from "@shared/ui/ReportButton";
 import { RichText } from "@shared/ui/RichText";
 import { Text } from "@shared/ui/Text";
+import { isOwnContent } from "@shared/utils/is-own-content";
 import { useCommentActions } from "../hooks/useCommentActions";
+import { useSessionStore } from "@core/session/session.store";
 import { useCommentOverlayStore } from "../store/comment-overlay.store";
 import { useI18n } from "@shared/hooks/useI18n";
 import { withOverlay } from "@shared/store/create-overlay-store";
@@ -78,6 +81,8 @@ function CommentCardView({
     // One entry, not the map: see `withOverlay`.
     const overlay = useCommentOverlayStore((s) => s.overlays[serverComment.id]);
     const comment = withOverlay(serverComment, overlay);
+    const viewerId = useSessionStore((s) => s.user?.id);
+    const isOwn = isOwnContent(comment.author, viewerId);
 
     const { handleLike, isLikeLoading, handleBookmark, handleShare } =
         useCommentActions({ comment });
@@ -204,6 +209,17 @@ function CommentCardView({
                             label={t("post.share")}
                             onPress={() => void handleShare()}
                         />
+
+                        {/* Somebody else's comment only, as on a post. */}
+                        {!isOwn && (
+                            <View className="ml-auto">
+                                <ReportButton
+                                    targetKind="COMMENT"
+                                    targetId={comment.id}
+                                    size={isHead ? 16 : 14}
+                                />
+                            </View>
+                        )}
                     </View>
                 </View>
             </View>

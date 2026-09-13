@@ -358,7 +358,15 @@ Posts and comments only, one endpoint, no read side. The answer is always
 nothing local to remember. Report and delete are mutually exclusive on a card.
 
 `useReport` returns its error rather than toasting it — the dialog holding the
-reason and the text is still on screen.
+reason and the text is still on screen. Only an answer to act on is returned
+(the content is gone, it is your own, a rate limit); a failure of ours goes to
+`reportError` and leaves the dialog as it was.
+
+The cards have no delete control yet, so "mutually exclusive" comes down to
+`isOwnContent`: the report control appears only on somebody else's post or
+comment. And with no toasts, success is said inside the dialog — the form gives
+way to "received, thank you" and a button to close it — rather than by closing
+on nothing.
 
 ### PR 24 — Mentions
 

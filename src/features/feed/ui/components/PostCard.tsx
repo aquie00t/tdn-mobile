@@ -16,9 +16,12 @@ import type { Post } from "../../data/feed.types";
 import { PostMedia } from "@shared/ui/PostMedia";
 import { RichText } from "@shared/ui/RichText";
 import { QuotedPostCard } from "./QuotedPostCard";
+import { ReportButton } from "@shared/ui/ReportButton";
 import { SensitiveMedia } from "@shared/ui/SensitiveMedia";
 import { Text } from "@shared/ui/Text";
+import { isOwnContent } from "@shared/utils/is-own-content";
 import { useI18n } from "@shared/hooks/useI18n";
+import { useSessionStore } from "@core/session/session.store";
 import { usePendingMedia } from "../hooks/usePendingMedia";
 import { usePostActions } from "../hooks/usePostActions";
 import { usePostOverlayStore, withOverlay } from "../store/post-overlay.store";
@@ -96,6 +99,7 @@ function PostCardView({
     const overlay = usePostOverlayStore((s) => s.overlays[serverPost.id]);
     const post = withOverlay(serverPost, overlay);
     const setQuoteDraft = useQuoteDraftStore((s) => s.set);
+    const viewerId = useSessionStore((s) => s.user?.id);
 
     /**
      * The post a bare repost carries, or `null` when this is not one.
@@ -103,11 +107,24 @@ function PostCardView({
      * A quote with nothing added is a repost — the API allows the empty
      * content only because there is a `quotedPostId`, so the two conditions
      * together are the whole definition, and it is the one the web's card uses
-     * too. Held as the post rather than as a boolean so the two places that
-     * need it can narrow instead of asserting.
+     * too. Held as the post rather than as a boolean so the places that need
+     * it can narrow instead of asserting.
      */
     const repostedOriginal =
         post.content.trim().length === 0 ? post.quotedPost : null;
+
+    /**
+     * What a report on this card is about: through a bare repost, the post it
+     * carries, the same way quoting goes through it.
+     *
+     * A report files a snapshot of its target, and a repost's own snapshot is
+     * an empty body — an operator would read nothing. The ownership check
+     * follows the target too, so your repost of somebody else's post can
+     * still report it, and somebody's repost of yours does not offer to
+     * report your own words.
+     */
+    const reportTarget = repostedOriginal ?? post;
+    const isOwn = isOwnContent(reportTarget.author, viewerId);
     const date = formatPostDate(post.createdAt, locale);
     const { refresh, isRefreshing } = usePendingMedia({
         postId: post.id,
@@ -323,6 +340,20 @@ function PostCardView({
                         label={t("post.share")}
                         onPress={() => void handleShare()}
                     />
+
+                    {/*
+                     * Where delete would sit on your own post, and never
+                     * both: you report what is not yours. The API refuses a
+                     * report of your own content, so the card decides.
+                     */}
+                    {!isOwn && (
+                        <View className="ml-auto">
+                            <ReportButton
+                                targetKind="POST"
+                                targetId={reportTarget.id}
+                            />
+                        </View>
+                    )}
                 </View>
             </View>
         </Row>

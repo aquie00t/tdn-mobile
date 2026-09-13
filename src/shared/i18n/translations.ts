@@ -171,7 +171,8 @@ const en = {
     "report.privacyNote": "The account you report is not told who reported it.",
     "report.submit": "Send report",
     "report.submitting": "Sending...",
-    "report.successToast": "Your report has been received. Thank you.",
+    "report.done": "Done",
+    "report.received": "Your report has been received. Thank you.",
 
     "commentList.empty": "No comments yet. Be the first!",
     "commentList.tryAgain": "Try Again",
@@ -938,7 +939,8 @@ const tr: Record<TranslationKey, string> = {
         "Şikayet ettiğiniz hesaba kimin şikayet ettiği bildirilmez.",
     "report.submit": "Şikayeti gönder",
     "report.submitting": "Gönderiliyor...",
-    "report.successToast": "Şikayetiniz alındı, teşekkürler.",
+    "report.done": "Tamam",
+    "report.received": "Şikayetiniz alındı, teşekkürler.",
 
     "commentList.empty": "Henüz yorum yok. İlk siz olun!",
     "commentList.tryAgain": "Tekrar Dene",

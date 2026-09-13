@@ -40,13 +40,22 @@ export function FeedFilterRow({
         <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            // `grow-0` is load-bearing. A horizontal `ScrollView` inside a
-            // column takes whatever height is left over, and the content
-            // container's `items-center` then parks the chips in the middle of
-            // it — so the row drifted downwards, and further still while the
-            // list below was a full-height spinner. Told not to grow, it hugs
-            // the chips.
-            className="grow-0 border-b border-ink/10"
+            // `grow-0 shrink-0`, and both halves are load-bearing. React
+            // Native gives every `ScrollView` `flexGrow: 1` *and*
+            // `flexShrink: 1`.
+            //
+            // Growing, it takes whatever height is left over, and the content
+            // container's `items-center` parks the chips in the middle of it —
+            // the row drifted downwards while the list below was a spinner.
+            //
+            // Shrinking is the opposite failure, and it waits for the posts.
+            // The list under this row is a `ScrollView` too, measured at the
+            // height of everything in it; once that is taller than the
+            // screen, the overflow is taken from every sibling that may
+            // shrink, in proportion to its size. This row is one of them, so
+            // it lost a slice of its forty pixels and clipped the chip labels
+            // — only after the feed arrived, never under the spinner.
+            className="shrink-0 grow-0 border-b border-ink/10"
             contentContainerClassName="items-center gap-2 px-4 py-2"
         >
             <Chip

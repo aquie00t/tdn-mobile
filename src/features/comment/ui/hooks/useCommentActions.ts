@@ -3,11 +3,10 @@ import { useCallback, useState } from "react";
 import type { Comment } from "../../data/comment.types";
 import { commentApi } from "../../data/comment.api";
 import { commentUrl } from "@shared/utils/web-url";
-import { getErrorMessage } from "@shared/utils/error-handler";
+import { reportError } from "@shared/utils/report-error";
 import { shareLink } from "@shared/utils/share";
 import { useCommentOverlayStore } from "../store/comment-overlay.store";
 import { useI18n } from "@shared/hooks/useI18n";
-import { useToastStore } from "@shared/store/toast.store";
 
 export interface UseCommentActionsOptions {
     comment: Comment;
@@ -21,13 +20,15 @@ export interface UseCommentActionsOptions {
  * comment can be on screen twice at once when it is also a reply expanded
  * under its parent.
  *
- * Deleting is deliberately absent. It needs a confirm, the `Modal` primitive
- * is not written, and a destructive action behind a single unguarded tap is
- * worse than one that is not there yet.
+ * A failure rolls back and says nothing, as on a post; the reason goes to
+ * `reportError`.
+ *
+ * Deleting is deliberately absent. It needs a confirm, and a destructive
+ * action behind a single unguarded tap is worse than one that is not there
+ * yet.
  */
 export function useCommentActions({ comment }: UseCommentActionsOptions) {
     const { t } = useI18n();
-    const addToast = useToastStore((s) => s.addToast);
     const patch = useCommentOverlayStore((s) => s.patch);
 
     const [isLikeLoading, setIsLikeLoading] = useState(false);
@@ -53,18 +54,11 @@ export function useCommentActions({ comment }: UseCommentActionsOptions) {
                 isLiked: wasLiked,
                 likeCount: previousCount,
             });
-            addToast({ type: "error", message: getErrorMessage(err) });
+            reportError("comment.like", err);
         } finally {
             setIsLikeLoading(false);
         }
-    }, [
-        comment.id,
-        comment.isLiked,
-        comment.likeCount,
-        isLikeLoading,
-        patch,
-        addToast,
-    ]);
+    }, [comment.id, comment.isLiked, comment.likeCount, isLikeLoading, patch]);
 
     const handleBookmark = useCallback(async () => {
         if (isBookmarkLoading) return;
@@ -79,11 +73,11 @@ export function useCommentActions({ comment }: UseCommentActionsOptions) {
             else await commentApi.saveComment(comment.id);
         } catch (err) {
             patch(comment.id, { isBookmarked: wasBookmarked });
-            addToast({ type: "error", message: getErrorMessage(err) });
+            reportError("comment.bookmark", err);
         } finally {
             setIsBookmarkLoading(false);
         }
-    }, [comment.id, comment.isBookmarked, isBookmarkLoading, patch, addToast]);
+    }, [comment.id, comment.isBookmarked, isBookmarkLoading, patch]);
 
     const handleShare = useCallback(async () => {
         const outcome = await shareLink(
@@ -92,9 +86,9 @@ export function useCommentActions({ comment }: UseCommentActionsOptions) {
         );
 
         if (outcome === "error") {
-            addToast({ type: "error", message: t("common.shareFailed") });
+            reportError("comment.share", "The share sheet did not open.");
         }
-    }, [comment.id, t, addToast]);
+    }, [comment.id, t]);
 
     return {
         handleLike,

@@ -1,13 +1,12 @@
 import { useCallback, useState } from "react";
 
 import { feedApi } from "../../data/feed.api";
-import { getErrorMessage } from "@shared/utils/error-handler";
 import type { Post } from "../../data/feed.types";
 import { postUrl } from "@shared/utils/web-url";
+import { reportError } from "@shared/utils/report-error";
 import { shareLink } from "@shared/utils/share";
 import { useI18n } from "@shared/hooks/useI18n";
 import { usePostOverlayStore } from "../store/post-overlay.store";
-import { useToastStore } from "@shared/store/toast.store";
 
 export interface UsePostActionsOptions {
     post: Post;
@@ -24,15 +23,15 @@ export interface UsePostActionsOptions {
  * screens at once: liking it on the detail screen has to show in the feed
  * behind it. Rolling back is the same call with the old values.
  *
+ * **A failure rolls back and says nothing.** The icon returning to how it was
+ * is the whole of what the reader is told; the reason goes to `reportError`,
+ * which the developer sees and the reader does not.
+ *
  * `isLikeLoading` stays local on purpose: it guards a double tap and means
  * nothing once the row is gone.
- *
- * There is no signed-out branch. The web opens its auth modal here; this app
- * is behind a sign-in wall, so there is nobody to open it for.
  */
 export function usePostActions({ post }: UsePostActionsOptions) {
     const { t } = useI18n();
-    const addToast = useToastStore((s) => s.addToast);
     const patch = usePostOverlayStore((s) => s.patch);
 
     const [isLikeLoading, setIsLikeLoading] = useState(false);
@@ -58,11 +57,11 @@ export function usePostActions({ post }: UsePostActionsOptions) {
                 isLiked: wasLiked,
                 likeCount: previousCount,
             });
-            addToast({ type: "error", message: getErrorMessage(err) });
+            reportError("post.like", err);
         } finally {
             setIsLikeLoading(false);
         }
-    }, [post.id, post.isLiked, post.likeCount, isLikeLoading, patch, addToast]);
+    }, [post.id, post.isLiked, post.likeCount, isLikeLoading, patch]);
 
     const handleBookmark = useCallback(async () => {
         if (isBookmarkLoading) return;
@@ -77,24 +76,24 @@ export function usePostActions({ post }: UsePostActionsOptions) {
             else await feedApi.savePost(post.id);
         } catch (err) {
             patch(post.id, { isBookmarked: wasBookmarked });
-            addToast({ type: "error", message: getErrorMessage(err) });
+            reportError("post.bookmark", err);
         } finally {
             setIsBookmarkLoading(false);
         }
-    }, [post.id, post.isBookmarked, isBookmarkLoading, patch, addToast]);
+    }, [post.id, post.isBookmarked, isBookmarkLoading, patch]);
 
     /**
-     * Only a failure is reported. A share that went out needs no confirmation
-     * — the reader watched it happen — and a dismissed sheet is somebody
-     * changing their mind, which is not an error to toast at them.
+     * A share that went out needs no confirmation — the reader watched it
+     * happen — and a dismissed sheet is somebody changing their mind. A sheet
+     * that would not open is reported to the developer only.
      */
     const handleShare = useCallback(async () => {
         const outcome = await shareLink(t("post.shareText"), postUrl(post.id));
 
         if (outcome === "error") {
-            addToast({ type: "error", message: t("common.shareFailed") });
+            reportError("post.share", "The share sheet did not open.");
         }
-    }, [post.id, t, addToast]);
+    }, [post.id, t]);
 
     return {
         handleLike,

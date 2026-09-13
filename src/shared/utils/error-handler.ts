@@ -107,3 +107,32 @@ export const getErrorMessage = (err: unknown): string => {
 
     return translate("error.unexpected");
 };
+
+/**
+ * The sentences `getErrorMessage` answers with when the failure is *ours*: the
+ * network, a timeout, a server that fell over, a body we could not read.
+ *
+ * Everything else it returns is the server's answer to the request — a 404, a
+ * validation message, a rate limit, a verdict on a file — and those are things
+ * the reader has to know to act on. Trying again does not fix a deleted post.
+ */
+const OUR_FAILURE_KEYS = [
+    "error.network",
+    "error.timeout",
+    "error.server",
+    "error.api",
+    "error.unexpected",
+] as const;
+
+/**
+ * Whether a message from `getErrorMessage` describes our failure rather than
+ * an answer about the request.
+ *
+ * Matched against the sentences in the current language, because the callers
+ * hold the string and not the error. A message produced before the language
+ * changed will not match, and is then shown as it is — a generic sentence in
+ * the old language, which says nothing it should not.
+ */
+export function isOurFailure(message: string): boolean {
+    return OUR_FAILURE_KEYS.some((key) => translate(key) === message);
+}

@@ -7,7 +7,6 @@ import { Modal } from "@shared/ui/Modal";
 import { Text } from "@shared/ui/Text";
 import { useBlockAction } from "@shared/hooks/useBlockAction";
 import { useI18n } from "@shared/hooks/useI18n";
-import { useToastStore } from "@shared/store/toast.store";
 
 export interface BlockToggleProps {
     /** `null` when the profile carries no usable id — the control is inert. */
@@ -32,6 +31,10 @@ export interface BlockToggleProps {
  * not** — it is the reversible direction, and a confirmation on the way out of
  * a state somebody chose to leave is a dialog nobody reads.
  *
+ * Nothing announces the outcome. A block that worked replaces the timeline
+ * with the notice and the button with "Unblock"; one that failed leaves the
+ * dialog open with its button back, to try again or cancel.
+ *
  * An icon beside the follow button rather than a menu, because there is no
  * menu anywhere in this app to put it in.
  */
@@ -44,23 +47,17 @@ export function BlockToggle({
     const { t } = useI18n();
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const { block, unblock, isPending } = useBlockAction();
-    const addToast = useToastStore((s) => s.addToast);
 
     const handleBlock = async () => {
         if (!(await block(targetId))) return;
 
         setIsConfirmOpen(false);
-        addToast({
-            type: "success",
-            message: t("block.blockedToast", { username }),
-        });
         onChange();
     };
 
     const handleUnblock = async () => {
         if (!(await unblock(targetId))) return;
 
-        addToast({ type: "success", message: t("block.unblockedToast") });
         onChange();
     };
 

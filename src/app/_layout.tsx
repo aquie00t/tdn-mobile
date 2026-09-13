@@ -6,8 +6,8 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { ToastHost } from "@shared/ui/Toast";
 import { clearTokens, loadTokens } from "@core/session/tokens";
+import { reportError } from "@shared/utils/report-error";
 import { registerSessionExpiredHandler } from "@core/api/client";
 import { useLanguageStore } from "@shared/store/language.store";
 import { useSessionStore } from "@core/session/session.store";
@@ -195,11 +195,7 @@ function useOnboardingGate(ready: boolean) {
             })
             .catch((err: unknown) => {
                 if (cancelled) return;
-                // eslint-disable-next-line no-console
-                console.warn(
-                    "Onboarding check skipped — the profile request failed:",
-                    err,
-                );
+                reportError("onboarding.check", err);
                 setChecked({ userId, shouldRedirect: false });
             });
 
@@ -319,7 +315,6 @@ export default function RootLayout() {
              */}
             <StatusBar style="auto" />
             <Stack screenOptions={{ headerShown: false }} />
-            <ToastHost />
         </SafeAreaProvider>
     );
 }

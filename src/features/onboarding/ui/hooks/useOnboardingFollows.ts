@@ -2,9 +2,8 @@ import { useCallback, useMemo, useState } from "react";
 
 import type { BotProfile } from "../../data/bot.types";
 import { followApi } from "@shared/data/follow.api";
-import { getErrorMessage } from "@shared/utils/error-handler";
 import { netFollowChange } from "../../domain/follow-requirement";
-import { useToastStore } from "@shared/store/toast.store";
+import { reportError } from "@shared/utils/report-error";
 
 /**
  * Who the account follows while it is in the flow.
@@ -22,14 +21,15 @@ import { useToastStore } from "@shared/store/toast.store";
  * only the *changes* made on top of it. Both sets are derived, there is no
  * effect, and re-seeding is not a thing that can happen.
  *
+ * A follow that fails rolls back and says nothing; the reason goes to
+ * `reportError`.
+ *
  * @param accounts - Every suggestion fetched so far
  */
 export function useOnboardingFollows(accounts: BotProfile[]) {
     /** Rows touched in this flow: the id, and what it was set to. */
     const [changes, setChanges] = useState<Map<string, boolean>>(new Map());
     const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
-
-    const addToast = useToastStore((s) => s.addToast);
 
     /** What was already true when each suggestion arrived. */
     const serverFollowedIds = useMemo(
@@ -76,7 +76,7 @@ export function useOnboardingFollows(accounts: BotProfile[]) {
                 setChanges((previous) =>
                     new Map(previous).set(userId, wasFollowing),
                 );
-                addToast({ type: "error", message: getErrorMessage(err) });
+                reportError("onboarding.follow", err);
             } finally {
                 setPendingIds((previous) => {
                     const next = new Set(previous);
@@ -85,7 +85,7 @@ export function useOnboardingFollows(accounts: BotProfile[]) {
                 });
             }
         },
-        [addToast, followedIds, pendingIds],
+        [followedIds, pendingIds],
     );
 
     return {

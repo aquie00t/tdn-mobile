@@ -10,7 +10,6 @@ import { Text } from "@shared/ui/Text";
 import { useBlockAction } from "@shared/hooks/useBlockAction";
 import { useBlockedList } from "../hooks/useBlockedList";
 import { useI18n } from "@shared/hooks/useI18n";
-import { useToastStore } from "@shared/store/toast.store";
 
 /**
  * Blocked accounts, inside Settings.
@@ -18,6 +17,9 @@ import { useToastStore } from "@shared/store/toast.store";
  * This list is the only route back to a block. The account is invisible in
  * the feed, in search, on its own timeline and in the inbox, so an unblock
  * button anywhere else would have nothing to sit on.
+ *
+ * An unblock that worked takes its row away, which is the confirmation; one
+ * that failed leaves the row and its button as they were.
  */
 export function BlockedAccountsSection() {
     const { t } = useI18n();
@@ -33,7 +35,6 @@ export function BlockedAccountsSection() {
         remove,
     } = useBlockedList();
     const { unblock, pendingId } = useBlockAction();
-    const addToast = useToastStore((s) => s.addToast);
 
     // On every focus rather than once: see `useBlockedList`.
     useFocusEffect(
@@ -43,10 +44,7 @@ export function BlockedAccountsSection() {
     );
 
     const handleUnblock = async (userId: string) => {
-        if (!(await unblock(userId))) return;
-
-        remove(userId);
-        addToast({ type: "success", message: t("block.unblockedToast") });
+        if (await unblock(userId)) remove(userId);
     };
 
     return (
@@ -65,12 +63,14 @@ export function BlockedAccountsSection() {
                 <View className="gap-3">
                     {/*
                      * An error and a list are not exclusive: a later page can
-                     * fail with rows already here, and they stay.
+                     * fail with rows already here, and they stay. The reader
+                     * is told only that it did not load, as `ErrorState`
+                     * tells them; the reason went to `reportError`.
                      */}
                     {error && (
                         <View className="flex-row items-center justify-between gap-4">
-                            <Text size="small" tone="danger" className="flex-1">
-                                {error}
+                            <Text size="small" tone="subtle" className="flex-1">
+                                {t("common.loadFailed")}
                             </Text>
                             <Button
                                 label={t("common.tryAgain")}

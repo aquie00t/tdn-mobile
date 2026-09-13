@@ -302,8 +302,6 @@ const en = {
         "The accounts you have blocked. This list is the only way back to one, since a blocked account is invisible everywhere else.",
     "block.empty": "You have not blocked anyone.",
     "block.listError": "Blocked accounts could not be loaded.",
-    "block.blockedToast": "@{{username}} is blocked.",
-    "block.unblockedToast": "Block lifted.",
 
     "followList.noFollowers": "No followers yet.",
     "followList.noFollowing": "Not following anyone yet.",
@@ -477,7 +475,6 @@ const en = {
     "auth.forgotEmailPlaceholder": "example@mail.com",
     "auth.codeResent": "A new code has been sent to your email.",
     "auth.invalidEmail": "Please enter a valid email.",
-    "auth.resetSuccess": "Your password has been reset successfully.",
 
     "page.post": "Post",
     "page.postNotFound": "Post not found.",
@@ -497,13 +494,11 @@ const en = {
     "common.saving": "Saving...",
     "common.loading": "Loading...",
     "common.tryAgain": "Try again",
+    "common.loadFailed": "Couldn't load this.",
     "common.loadMore": "Load more",
     "common.loadingMore": "Loading...",
     "common.back": "Back",
     "common.linkCopied": "Link copied to clipboard!",
-    "common.shareFailed": "Could not share the link. Please try again.",
-    "common.notificationsUnavailable":
-        "Real-time notifications are currently unavailable.",
 
     "common.dismiss": "Dismiss",
     "common.syncingAccount": "Synchronizing account...",
@@ -1058,8 +1053,6 @@ const tr: Record<TranslationKey, string> = {
         "Engellediğiniz hesaplar. Bir engeli kaldırmanın tek yolu bu liste; engellenen hesap başka her yerde görünmez.",
     "block.empty": "Henüz kimseyi engellemediniz.",
     "block.listError": "Engellenen hesaplar yüklenemedi.",
-    "block.blockedToast": "@{{username}} engellendi.",
-    "block.unblockedToast": "Engel kaldırıldı.",
 
     "followList.noFollowers": "Henüz takipçi yok.",
     "followList.noFollowing": "Henüz kimseyi takip etmiyor.",
@@ -1230,7 +1223,6 @@ const tr: Record<TranslationKey, string> = {
     "auth.forgotEmailPlaceholder": "ornek@mail.com",
     "auth.codeResent": "E-posta adresinize yeni bir kod gönderildi.",
     "auth.invalidEmail": "Lütfen geçerli bir e-posta adresi girin.",
-    "auth.resetSuccess": "Şifreniz başarıyla sıfırlandı.",
 
     "page.post": "Gönderi",
     "page.postNotFound": "Gönderi bulunamadı.",
@@ -1250,13 +1242,11 @@ const tr: Record<TranslationKey, string> = {
     "common.saving": "Kaydediliyor...",
     "common.loading": "Yükleniyor...",
     "common.tryAgain": "Tekrar dene",
+    "common.loadFailed": "Yüklenemedi.",
     "common.loadMore": "Daha fazla",
     "common.loadingMore": "Yükleniyor...",
     "common.back": "Geri",
     "common.linkCopied": "Bağlantı panoya kopyalandı!",
-    "common.shareFailed": "Bağlantı paylaşılamadı. Lütfen tekrar deneyin.",
-    "common.notificationsUnavailable":
-        "Gerçek zamanlı bildirimler şu anda kullanılamıyor.",
 
     "common.dismiss": "Kapat",
     "common.syncingAccount": "Hesap eşitleniyor...",

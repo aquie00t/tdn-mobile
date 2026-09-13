@@ -233,6 +233,13 @@ const en = {
     "bookmarks.tabPosts": "Posts",
     "bookmarks.tabComments": "Comments",
     "bookmarks.tabArticles": "Articles",
+    /*
+     * Per tab, because the shared list empties do not fit: `postList.empty`
+     * names a category and `commentList.empty` invites somebody to write the
+     * first comment — under a list of things they saved, neither is true.
+     */
+    "bookmarks.emptyPosts": "No saved posts yet",
+    "bookmarks.emptyComments": "No saved comments yet",
     "bookmarks.emptyTitle": "Save posts for later",
     "bookmarks.emptyBody":
         "Don't let the good ones get away! Bookmark posts to easily find them again in the future.",
@@ -973,6 +980,8 @@ const tr: Record<TranslationKey, string> = {
     "bookmarks.tabPosts": "Gönderiler",
     "bookmarks.tabComments": "Yorumlar",
     "bookmarks.tabArticles": "Makaleler",
+    "bookmarks.emptyPosts": "Henüz kaydedilmiş gönderi yok",
+    "bookmarks.emptyComments": "Henüz kaydedilmiş yorum yok",
     "bookmarks.emptyTitle": "Gönderileri sonra için kaydet",
     "bookmarks.emptyBody":
         "Kaçırma! Gönderileri daha sonra kolayca bulmak için kaydet.",

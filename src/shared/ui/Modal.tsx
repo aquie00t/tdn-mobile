@@ -70,8 +70,21 @@ export function Modal({
                     onPress={requestClose}
                     className="absolute inset-0 bg-scrim/60"
                 />
+                {/*
+                 * The panel claims every touch that lands on it and nothing
+                 * inside it takes.
+                 *
+                 * React Native bubbles touches through the *component* tree,
+                 * not the native windows, so a modal opened from inside a
+                 * pressable card is still inside that card as far as touches
+                 * are concerned: a tap on this panel's title would open the
+                 * post behind it. Its own buttons, radios and fields sit
+                 * deeper and are asked first, so they are unaffected; the
+                 * scrim is a sibling, so a tap outside still closes.
+                 */}
                 <View
                     accessibilityViewIsModal
+                    onStartShouldSetResponder={() => true}
                     className="rounded-2xl border border-ink/10 bg-surface-1 p-6"
                 >
                     {children}

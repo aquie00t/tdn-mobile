@@ -9,6 +9,7 @@ import {
     Clock,
     Compass,
     EyeOff,
+    Flag,
     Gamepad2,
     Hash,
     Heart,
@@ -112,6 +113,7 @@ export const TrendIcon = themed(TrendingUp);
 /** A post's actions, and the counters beside them. */
 export const BookmarkIcon = themed(Bookmark);
 export const BlockIcon = themed(Ban);
+export const ReportIcon = themed(Flag);
 export const ShareIcon = themed(Share2);
 
 /** A post's three counters, in the order the web's card draws them. */

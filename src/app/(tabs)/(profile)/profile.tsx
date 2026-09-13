@@ -10,7 +10,7 @@ import { PostCard } from "@features/feed/ui/components/PostCard";
 import { ProfileHeader } from "@features/profile/ui/components/ProfileHeader";
 import { Screen } from "@shared/ui/Screen";
 import { ScreenHeader } from "@shared/layout/ScreenHeader";
-import { SettingsIcon } from "@shared/ui/icons/lucide";
+import { BookmarkIcon, SettingsIcon } from "@shared/ui/icons/lucide";
 import { Spinner } from "@shared/ui/Spinner";
 import { useI18n } from "@shared/hooks/useI18n";
 import { useProfile } from "@features/profile/ui/hooks/useProfile";
@@ -70,15 +70,34 @@ export default function ProfileTab() {
                 title={username ? `@${username}` : ""}
                 showBack={false}
                 right={
-                    <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={t("settings.title")}
-                        onPress={() => router.push("/settings")}
-                        hitSlop={8}
-                        className="h-10 w-10 items-center justify-center rounded-full active:bg-ink/10"
-                    >
-                        <SettingsIcon size={20} className="text-ink" />
-                    </Pressable>
+                    /*
+                     * Two ways out of this screen, and saved things are the
+                     * reason for the first. There is no room for them in the
+                     * bar — five tabs is what a 360px phone holds — and a
+                     * saved list belongs to an account rather than being a
+                     * place to switch to, which is where the web keeps it too.
+                     */
+                    <View className="flex-row items-center">
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("bookmarks.title")}
+                            onPress={() => router.push("/saved")}
+                            hitSlop={8}
+                            className="h-10 w-10 items-center justify-center rounded-full active:bg-ink/10"
+                        >
+                            <BookmarkIcon size={20} className="text-ink" />
+                        </Pressable>
+
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("settings.title")}
+                            onPress={() => router.push("/settings")}
+                            hitSlop={8}
+                            className="h-10 w-10 items-center justify-center rounded-full active:bg-ink/10"
+                        >
+                            <SettingsIcon size={20} className="text-ink" />
+                        </Pressable>
+                    </View>
                 }
             />
 

@@ -2,6 +2,7 @@ import { ScrollView, View } from "react-native";
 import { useCallback, useEffect } from "react";
 
 import { AccountInfoSection } from "../components/AccountInfoSection";
+import { BlockedAccountsSection } from "../components/BlockedAccountsSection";
 import { Button } from "@shared/ui/Button";
 import { ChangeEmailSection } from "../components/ChangeEmailSection";
 import { ChangePasswordSection } from "../components/ChangePasswordSection";
@@ -42,8 +43,8 @@ export interface SettingsScreenProps {
 }
 
 /**
- * The web's settings page, in its order, less the blocked accounts — those
- * arrive with blocking (PR 22).
+ * The web's settings page, in its order. The blocked accounts sit under the
+ * theme, where the web keeps them, and are the only way back to a block.
  *
  * The account is read once and every form writes its change back into that
  * copy, so the page agrees with itself without re-reading after each save. The
@@ -139,6 +140,8 @@ export function SettingsScreen({
                         ))}
                     </View>
                 </SettingsSection>
+
+                <BlockedAccountsSection />
 
                 <ChangeUsernameSection
                     onChanged={(username) => patch({ username })}

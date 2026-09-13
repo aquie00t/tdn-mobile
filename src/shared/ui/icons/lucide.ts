@@ -1,5 +1,6 @@
 import {
     ArrowLeft,
+    Ban,
     Bell,
     Bookmark,
     Camera,
@@ -110,6 +111,7 @@ export const TrendIcon = themed(TrendingUp);
 
 /** A post's actions, and the counters beside them. */
 export const BookmarkIcon = themed(Bookmark);
+export const BlockIcon = themed(Ban);
 export const ShareIcon = themed(Share2);
 
 /** A post's three counters, in the order the web's card draws them. */

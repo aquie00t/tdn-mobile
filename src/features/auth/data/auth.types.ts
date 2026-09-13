@@ -25,19 +25,6 @@ export interface CheckResponse {
     check: boolean;
 }
 
-/** Mirrors of the API's schema, so a doomed request is never sent. */
-export const AUTH_LIMITS = {
-    identifierMax: 100,
-    usernameMin: 3,
-    usernameMax: 30,
-    passwordMin: 8,
-    /** Exactly eight, digits only. */
-    otpLength: 8,
-} as const;
-
-export const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
-export const OTP_PATTERN = /^[0-9]+$/;
-
 export interface RegisterBody {
     email: string;
     username: string;

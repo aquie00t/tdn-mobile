@@ -2,12 +2,12 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 
-import { AUTH_LIMITS, OTP_PATTERN } from "../../data/auth.types";
+import { AUTH_LIMITS, OTP_PATTERN } from "@shared/data/account-rules";
 import { Button } from "@shared/ui/Button";
 import { Screen } from "@shared/ui/Screen";
 import { Text } from "@shared/ui/Text";
 import { TextField } from "@shared/ui/TextField";
-import { authApi } from "../../data/auth.api";
+import { verificationApi } from "@shared/data/verification.api";
 import { getErrorMessage } from "@shared/utils/error-handler";
 import { useAuthFlowStore } from "../store/auth-flow.store";
 import { useI18n } from "@shared/hooks/useI18n";
@@ -34,7 +34,7 @@ export function VerifyEmailScreen() {
         if (hasRequestedCode.current) return;
         hasRequestedCode.current = true;
 
-        authApi.sendVerification().catch((err: unknown) => {
+        verificationApi.sendVerification().catch((err: unknown) => {
             setError(getErrorMessage(err));
         });
     }, []);
@@ -48,7 +48,7 @@ export function VerifyEmailScreen() {
         setError(null);
         setNotice(null);
         try {
-            await authApi.verifyEmail(code);
+            await verificationApi.verifyEmail(code);
             updateUser({ isEmailVerified: true });
             resetFlow();
             router.replace("/");
@@ -64,7 +64,7 @@ export function VerifyEmailScreen() {
         setError(null);
         setNotice(null);
         try {
-            await authApi.sendVerification();
+            await verificationApi.sendVerification();
             setNotice(t("auth.codeResent"));
         } catch (err) {
             setError(getErrorMessage(err));

@@ -268,8 +268,10 @@ inherits neither typography nor colour from the `View` around it, so a bare
 ground.
 
 `scrim` and `on-fill` deliberately do **not** swap between themes: a wash over
-somebody's photo and the white on a red delete button contrast against
-something the theme did not change.
+somebody's photo and the white over it contrast against something the theme
+did not change. `danger` *does* swap — dark red on light, light red on dark — so
+a filled red button takes `ground` for its label, as `primary` does over `ink`;
+white on the dark theme's red is about 2.8:1.
 
 The theme is set at module scope in `src/app/_layout.tsx`, before the first
 render — the native counterpart of the inline script in the web client's
@@ -331,7 +333,8 @@ client has to mock crypto.
 - Always render explicit **loading**, **error** (with retry) and **empty**
   states — never silently render nothing.
 - Mutations are **optimistic**: snapshot, apply, roll back in `catch`. Blocking
-  is the one exception, and `docs/roadmap.md` says why.
+  and the account forms in Settings are the exceptions, and `docs/roadmap.md`
+  says why.
 - No barrel `index.ts` files, except `core/platform/index.ts`, which is the
   composition root.
 

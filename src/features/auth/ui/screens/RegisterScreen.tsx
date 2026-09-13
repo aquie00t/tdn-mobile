@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 
-import { AUTH_LIMITS } from "../../data/auth.types";
+import { AUTH_LIMITS } from "@shared/data/account-rules";
 import { Button } from "@shared/ui/Button";
 import { Screen } from "@shared/ui/Screen";
 import { Text } from "@shared/ui/Text";

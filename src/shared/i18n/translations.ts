@@ -413,6 +413,11 @@ const en = {
     "settings.deleting": "Deleting…",
     "settings.cancel": "Cancel",
     "settings.delete": "Delete",
+    "settings.usernameTooShort": "Username must be at least 3 characters.",
+    "settings.usernameTooLong": "Username can be at most 30 characters.",
+    "settings.usernameInvalid":
+        "Use only letters, numbers, dots and underscores.",
+    "settings.emailInvalid": "Enter a valid email address.",
 
     "auth.joinTitle": "Join TDN today",
     "auth.identifierPlaceholder": "Phone, email, or username",
@@ -1160,6 +1165,11 @@ const tr: Record<TranslationKey, string> = {
     "settings.deleting": "Siliniyor…",
     "settings.cancel": "İptal",
     "settings.delete": "Sil",
+    "settings.usernameTooShort": "Kullanıcı adı en az 3 karakter olmalı.",
+    "settings.usernameTooLong": "Kullanıcı adı en fazla 30 karakter olabilir.",
+    "settings.usernameInvalid":
+        "Yalnızca harf, rakam, nokta ve alt çizgi kullanın.",
+    "settings.emailInvalid": "Geçerli bir e-posta adresi girin.",
 
     "auth.joinTitle": "Bugün TDN'e katıl",
     "auth.identifierPlaceholder": "Telefon, e-posta veya kullanıcı adı",

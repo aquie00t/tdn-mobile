@@ -325,6 +325,17 @@ One endpoint returning posts, comments and articles together.
 Account info, username, email and password changes, account deletion behind a
 password, theme and language.
 
+The account forms are **not** optimistic, the second exception after blocking.
+They are submissions the server judges rather than toggles it records: a
+username can be taken, a current password wrong. Shown before the answer, the
+change would be a name that was never yours for as long as the request took.
+
+The API holds neither a changed username nor a changed password to the rules
+it registered them under — both schemas are a bare string — so the client
+does, from `shared/data/account-rules.ts`. A changed email is marked
+unverified on the server as it is stored, so the verification section appears
+the moment the change succeeds rather than on the next visit.
+
 ### PR 22 — Blocking
 
 The one mutation that is **not** optimistic: a block that failed leaves a

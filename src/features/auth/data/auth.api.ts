@@ -9,8 +9,9 @@ import type {
 } from "./auth.types";
 
 /**
- * Everything here except `sendVerification`, `verifyEmail` and `logout` runs
- * *before* there is a session, so it is `isAnonymous` rather than `isPublic`.
+ * Everything here except `logout` runs *before* there is a session, so it is
+ * `isAnonymous` rather than `isPublic`. Verifying an address is authenticated
+ * and asked for by Settings too, so it lives in `shared/data`.
  *
  * The difference matters more than it looks. A 401 from these endpoints is
  * their verdict on the credentials supplied — "that password is wrong" — not a
@@ -44,13 +45,6 @@ export const authApi = {
         api.post<RegisterResponse>("/auth/register", body, {
             isAnonymous: true,
         }),
-
-    /** Authenticated: it emails the account the token belongs to. */
-    sendVerification: () =>
-        api.post<{ sent: boolean }>("/auth/send-verification"),
-
-    verifyEmail: (otp: string) =>
-        api.post<{ verified: boolean }>("/auth/verify-email", { otp }),
 
     forgotPassword: (email: string) =>
         api.post<void>(

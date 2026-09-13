@@ -1,13 +1,20 @@
 import { ScrollView, View } from "react-native";
-import type { ReactNode } from "react";
+import { useCallback, useEffect } from "react";
 
+import { AccountInfoSection } from "../components/AccountInfoSection";
 import { Button } from "@shared/ui/Button";
+import { ChangeEmailSection } from "../components/ChangeEmailSection";
+import { ChangePasswordSection } from "../components/ChangePasswordSection";
+import { ChangeUsernameSection } from "../components/ChangeUsernameSection";
+import { DangerZoneSection } from "../components/DangerZoneSection";
 import type { Locale } from "@shared/store/language.store";
 import { Screen } from "@shared/ui/Screen";
 import { ScreenHeader } from "@shared/layout/ScreenHeader";
-import { Text } from "@shared/ui/Text";
+import { SettingsSection } from "../components/SettingsSection";
 import type { Theme } from "@shared/store/theme.store";
 import type { TranslationKey } from "@shared/i18n/translations";
+import { VerifyEmailSection } from "../components/VerifyEmailSection";
+import { useAccountInfo } from "../hooks/useAccountInfo";
 import { useI18n } from "@shared/hooks/useI18n";
 import { useLanguageStore } from "@shared/store/language.store";
 import { useTheme } from "@shared/hooks/useTheme";
@@ -23,40 +30,75 @@ const LOCALES: { value: Locale; label: TranslationKey }[] = [
     { value: "tr", label: "settings.turkish" },
 ];
 
-/**
- * The settings the app can actually answer today.
- *
- * The web's page carries nine sections; six of them — account info, changing a
- * username, an email or a password, verifying an address and blocked accounts
- * — need endpoints and screens this client has not built yet, and deleting an
- * account needs a confirm the `Modal` primitive would have to provide. Those
- * are PR 21's, and PR 22's for blocking.
- *
- * What is here is what was living on the profile tab because it had nowhere
- * else to be: the theme, the language, and the way out. A profile is a page
- * about a person; a switch for how the app looks is not part of that, and a
- * full-width sign-out button under somebody's posts reads as an instruction.
- */
 export interface SettingsScreenProps {
     /**
-     * Wired by the route. Signing out means telling the server, which means a
-     * feature's data layer — and a feature may not reach into another, so the
-     * screen is handed the action rather than finding it.
+     * Both wired by the route. Signing out means telling the server, which
+     * means the auth feature's data layer — and a feature may not reach into
+     * another, so the screen is handed the actions rather than finding them.
      */
     onSignOut: () => void;
+    /** The same sign-out, awaited, after the account has been deleted. */
+    onAccountDeleted: () => Promise<void>;
 }
 
-export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
+/**
+ * The web's settings page, in its order, less the blocked accounts — those
+ * arrive with blocking (PR 22).
+ *
+ * The account is read once and every form writes its change back into that
+ * copy, so the page agrees with itself without re-reading after each save. The
+ * verification section follows the account rather than the session: it is the
+ * server's answer to whether the address is verified, and the one a changed
+ * email updates first.
+ *
+ * `keyboardShouldPersistTaps="handled"` is what lets the save button under a
+ * focused field take the first tap. Without it the first tap only dismisses
+ * the keyboard, and the form seems not to have heard.
+ */
+export function SettingsScreen({
+    onSignOut,
+    onAccountDeleted,
+}: SettingsScreenProps) {
     const { t, locale } = useI18n();
     const { theme, setTheme } = useTheme();
     const setLocale = useLanguageStore((s) => s.setLocale);
+    const { account, isLoading, error, load, retry, patch } = useAccountInfo();
+
+    // The screen drives its own read, as the profile and the feed do.
+    useEffect(() => {
+        void load();
+    }, [load]);
+
+    const handleVerified = useCallback(
+        () => patch({ isEmailVerified: true }),
+        [patch],
+    );
 
     return (
         <Screen edges={{ top: true, bottom: false }}>
             <ScreenHeader title={t("settings.title")} />
 
-            <ScrollView contentContainerClassName="pb-10">
-                <Section
+            <ScrollView
+                contentContainerClassName="pb-10"
+                keyboardShouldPersistTaps="handled"
+            >
+                <AccountInfoSection
+                    account={account}
+                    isLoading={isLoading}
+                    error={error}
+                    onRetry={retry}
+                />
+
+                {account && !account.isEmailVerified && (
+                    // Keyed on the address, so a code sent to the previous one
+                    // is not offered as though it were for the new one.
+                    <VerifyEmailSection
+                        key={account.email}
+                        onVerified={handleVerified}
+                    />
+                )}
+
+                <SettingsSection
                     title={t("settings.language")}
                     subtitle={t("settings.languageSubtitle")}
                 >
@@ -75,9 +117,9 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
                             />
                         ))}
                     </View>
-                </Section>
+                </SettingsSection>
 
-                <Section
+                <SettingsSection
                     title={t("settings.theme")}
                     subtitle={t("settings.themeSubtitle")}
                 >
@@ -96,42 +138,23 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
                             />
                         ))}
                     </View>
-                </Section>
+                </SettingsSection>
 
-                <Section
-                    title={t("settings.dangerZone")}
-                    subtitle={t("settings.logOutSubtitle")}
-                >
-                    <Button
-                        label={t("settings.logOut")}
-                        variant="outline"
-                        size="full"
-                        onPress={onSignOut}
-                    />
-                </Section>
+                <ChangeUsernameSection
+                    onChanged={(username) => patch({ username })}
+                />
+                <ChangeEmailSection
+                    onChanged={(email) =>
+                        patch({ email, isEmailVerified: false })
+                    }
+                />
+                <ChangePasswordSection />
+
+                <DangerZoneSection
+                    onSignOut={onSignOut}
+                    onAccountDeleted={onAccountDeleted}
+                />
             </ScrollView>
         </Screen>
-    );
-}
-
-function Section({
-    title,
-    subtitle,
-    children,
-}: {
-    title: string;
-    subtitle: string;
-    children: ReactNode;
-}) {
-    return (
-        <View className="gap-3 border-b border-ink/10 px-4 py-6">
-            <View className="gap-1">
-                <Text className="font-semibold">{title}</Text>
-                <Text size="small" tone="subtle">
-                    {subtitle}
-                </Text>
-            </View>
-            {children}
-        </View>
     );
 }

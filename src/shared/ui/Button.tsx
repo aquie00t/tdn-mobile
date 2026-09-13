@@ -7,16 +7,29 @@ import { cn } from "./cn";
 
 /**
  * The four the web uses, minus its `lg` size — which is written at zero of 51
- * call sites there, so it is not ported.
+ * call sites there, so it is not ported — plus the two red ones the web
+ * hand-writes as bare `<button>`s wherever something is destroyed.
  *
  * There is no `:hover` on a phone. The web's hover fills become pressed
  * fills, which is the same intent reached by the only input a finger has.
+ *
+ * Each carries its label colour. `primary` fills with `ink`, so its label is
+ * the *ground*, and the pair swaps wholesale between themes. `danger` is the
+ * same arrangement, not `on-fill`: the role *does* swap — a dark red on the
+ * light theme, a light red on the dark one — and white on that light red is
+ * about 2.8:1, under the floor for text. The ground is black there and white
+ * on the dark red, which clears it comfortably in both.
  */
 const VARIANTS = {
-    primary: { box: "bg-ink active:bg-ink-hover", onFill: true },
-    secondary: { box: "bg-surface-2 active:bg-surface-3", onFill: false },
-    outline: { box: "border border-ink/20 active:bg-ink/5", onFill: false },
-    ghost: { box: "active:bg-ink/10", onFill: false },
+    primary: { box: "bg-ink active:bg-ink-hover", label: "text-ground" },
+    secondary: { box: "bg-surface-2 active:bg-surface-3", label: "text-ink" },
+    outline: { box: "border border-ink/20 active:bg-ink/5", label: "text-ink" },
+    ghost: { box: "active:bg-ink/10", label: "text-ink" },
+    danger: { box: "bg-danger active:bg-danger/90", label: "text-ground" },
+    dangerOutline: {
+        box: "border border-danger/40 active:bg-danger/10",
+        label: "text-danger",
+    },
 } as const;
 
 const SIZES = {
@@ -64,9 +77,7 @@ export function Button({
     const v = VARIANTS[variant];
     const s = SIZES[size];
     const isDisabled = disabled || loading;
-    // `primary` fills with `ink`, so its label is the *ground*. The pair swaps
-    // wholesale between themes, which is what keeps it legible in both.
-    const labelTone = v.onFill ? "text-ground" : "text-ink";
+    const labelTone = v.label;
 
     return (
         <Pressable

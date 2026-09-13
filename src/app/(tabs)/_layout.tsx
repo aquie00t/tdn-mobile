@@ -71,7 +71,14 @@ export default function TabsLayout() {
                         <TabBarButton icon={HomeIcon} label="nav.home" />
                     </TabTrigger>
 
-                    <TabTrigger name="explore" href="/explore" asChild>
+                    {/*
+                     * A group too, now that a tag has a screen of its own: the
+                     * trigger names the group and the href still names the
+                     * screen inside it. The file is `explore.tsx` rather than
+                     * an `index` — two groups each holding an index both
+                     * resolve to `/`, which is how `/profile` disappeared once.
+                     */}
+                    <TabTrigger name="(explore)" href="/explore" asChild>
                         <TabBarButton icon={ExploreIcon} label="nav.explore" />
                     </TabTrigger>
 

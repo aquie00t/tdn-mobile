@@ -9,6 +9,7 @@ import {
     Compass,
     EyeOff,
     Gamepad2,
+    Hash,
     Heart,
     Home,
     ImagePlus,
@@ -18,12 +19,14 @@ import {
     Plus,
     Repeat2,
     RefreshCw,
+    Search,
     Send,
     Server,
     Settings,
     Share2,
     Smartphone,
     Sparkles,
+    TrendingUp,
     Users,
     X,
 } from "lucide-react-native";
@@ -99,6 +102,11 @@ export const CloseIcon = themed(X);
 
 /** A tick on something chosen — the onboarding picker's tiles. */
 export const CheckIcon = themed(Check);
+
+/** Explore: the search field, a tag, and what is rising. */
+export const SearchIcon = themed(Search);
+export const TagIcon = themed(Hash);
+export const TrendIcon = themed(TrendingUp);
 
 /** A post's actions, and the counters beside them. */
 export const BookmarkIcon = themed(Bookmark);

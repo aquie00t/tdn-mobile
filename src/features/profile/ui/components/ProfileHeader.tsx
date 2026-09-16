@@ -27,6 +27,21 @@ export interface ProfileHeaderProps {
      * control is not drawn.
      */
     onBlockChange?: () => void;
+    /**
+     * An extra control beside Follow — in practice the button that opens a
+     * conversation.
+     *
+     * A node rather than a callback, and handed in by the route rather than
+     * imported here: that button belongs to the messaging feature, this header
+     * belongs to the profile feature, and a feature may not import another. A
+     * route may import both, which is where the two are put together.
+     *
+     * Drawn only where Follow is, so it is absent from your own profile and
+     * from one either side has blocked — there is no conversation to open in
+     * either case, and the API answers a blocked pair with
+     * `InvalidRecipientError` regardless.
+     */
+    action?: React.ReactNode;
 }
 
 const BANNER = { width: "100%", height: "100%" } as const;
@@ -62,6 +77,7 @@ export function ProfileHeader({
     profile,
     onPatch,
     onBlockChange,
+    action,
 }: ProfileHeaderProps) {
     const { t, locale } = useI18n();
     const router = useRouter();
@@ -143,6 +159,7 @@ export function ProfileHeader({
                         )
                     ) : isBlockedBy ? null : (
                         <View className="flex-row items-center gap-2 pb-1">
+                            {action}
                             <Button
                                 label={
                                     profile.isFollowing

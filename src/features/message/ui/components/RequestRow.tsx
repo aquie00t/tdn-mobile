@@ -1,5 +1,6 @@
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useState } from "react";
+import { useRouter } from "expo-router";
 
 import { Avatar } from "@shared/ui/Avatar";
 import { Button } from "@shared/ui/Button";
@@ -47,6 +48,7 @@ export interface RequestRowProps {
  */
 export function RequestRow({ conversation }: RequestRowProps) {
     const { t } = useI18n();
+    const router = useRouter();
     const { accept, decline, busy, isBusy, error } = useConversationActions();
     const [isConfirming, setIsConfirming] = useState(false);
 
@@ -63,7 +65,22 @@ export function RequestRow({ conversation }: RequestRowProps) {
 
     return (
         <View className="gap-3 border-b border-ink/10 px-4 py-3">
-            <View className="flex-row items-center gap-3">
+            {/*
+             * The row opens the thread; the buttons below answer it without
+             * going there. Both are worth having — reading what somebody
+             * actually wrote is often how the decision gets made.
+             */}
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={participant.username}
+                onPress={() =>
+                    router.push({
+                        pathname: "/messages/[id]",
+                        params: { id: conversation.id },
+                    })
+                }
+                className="flex-row items-center gap-3"
+            >
                 {participant.avatarUrl ? (
                     <Avatar uri={participant.avatarUrl} size={48} />
                 ) : (
@@ -83,7 +100,7 @@ export function RequestRow({ conversation }: RequestRowProps) {
                         {lastMessagePreview ?? t("messages.startHint")}
                     </Text>
                 </View>
-            </View>
+            </Pressable>
 
             {isRequest ? (
                 <View className="flex-row gap-2 pl-[60px]">

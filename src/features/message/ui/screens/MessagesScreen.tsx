@@ -39,9 +39,9 @@ const conversationKey = (conversation: Conversation) => conversation.id;
  * `ACCEPTED` only so a stranger cannot raise somebody's badge — so the number
  * can only come from the listing itself.
  *
- * Rows do not open anything yet. The thread is the next pull request; until it
- * exists a row that answered a tap with nothing would read as broken, where a
- * row that does not answer reads as a list.
+ * Both kinds of row open the thread. A request also carries its decision, so
+ * a handful of them can be answered from the list without going through a
+ * conversation nobody has agreed to have yet.
  */
 export function MessagesScreen() {
     const { t } = useI18n();

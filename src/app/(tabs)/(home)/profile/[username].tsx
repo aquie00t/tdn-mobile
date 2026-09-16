@@ -6,6 +6,8 @@ import { BlockedNotice } from "@features/profile/ui/components/BlockedNotice";
 import { Button } from "@shared/ui/Button";
 import { EmptyState } from "@shared/ui/EmptyState";
 import { ErrorState } from "@shared/ui/ErrorState";
+import { followTargetId } from "@features/profile/domain/follow-target";
+import { MessageButton } from "@features/message/ui/components/MessageButton";
 import type { Post } from "@features/feed/data/feed.types";
 import { PostCard } from "@features/feed/ui/components/PostCard";
 import { ProfileHeader } from "@features/profile/ui/components/ProfileHeader";
@@ -22,8 +24,9 @@ const keyOf = (post: Post) => post.id;
  * An account: who they are, and what they have written.
  *
  * **Composed in the route**, like the post detail screen and for the same
- * reason. The header is the profile feature's and the list is the feed's — a
- * feature may not import another, and a route may import both. The list owns
+ * reason. The header is the profile feature's, the list is the feed's and the
+ * button that opens a conversation is messaging's — a feature may not import
+ * another, and a route may import all three. The list owns
  * the scrolling and takes the header as its own, so the whole screen moves
  * together rather than as two scrollers fighting for the gesture.
  */
@@ -55,6 +58,10 @@ export default function ProfileRoute() {
         void fetchProfile();
         void fetchPosts();
     }, [fetchProfile, fetchPosts]);
+
+    // `id` on a profile, `userId` on a follow row — the same reason
+    // `followTargetId` exists, and the same field messaging needs.
+    const recipientId = profile ? followTargetId(profile) : null;
 
     const renderItem = useCallback(
         ({ item }: { item: Post }) => (
@@ -105,6 +112,19 @@ export default function ProfileRoute() {
                                 profile={profile}
                                 onPatch={patch}
                                 onBlockChange={handleBlockChange}
+                                /*
+                                 * Only where there is an id to write to. The
+                                 * header draws this beside Follow, so it is
+                                 * already absent from your own profile and
+                                 * from one either side has blocked.
+                                 */
+                                action={
+                                    recipientId ? (
+                                        <MessageButton
+                                            recipientId={recipientId}
+                                        />
+                                    ) : undefined
+                                }
                             />
 
                             {hasBlockRelation && (

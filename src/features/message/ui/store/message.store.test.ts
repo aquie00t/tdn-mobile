@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type {
     Conversation,
     IncomingMessagePayload,
+    Message,
 } from "../../data/message.types";
 import { useMessageStore } from "./message.store";
 
@@ -44,6 +45,21 @@ const request = (over: Partial<Conversation> = {}): Conversation =>
 const outgoing = (over: Partial<Conversation> = {}): Conversation =>
     conversation({ status: "PENDING", isRequest: false, ...over });
 
+const message = (over: Partial<Message> = {}): Message => ({
+    id: "m1",
+    conversationId: "c1",
+    senderId: "u1",
+    content: "hello",
+    mediaUrls: [],
+    isSensitive: false,
+    mediaPending: false,
+    mediaRejected: false,
+    isDeleted: false,
+    isMine: true,
+    createdAt: "2026-09-10T12:00:00.000Z",
+    ...over,
+});
+
 const state = () => useMessageStore.getState();
 
 beforeEach(() => {
@@ -51,6 +67,7 @@ beforeEach(() => {
     useMessageStore.setState({
         conversationsRevision: 0,
         requestsRevision: 0,
+        threadRevision: 0,
     });
 });
 
@@ -121,6 +138,23 @@ describe("applyIncoming", () => {
         expect(first.lastMessageAt).toBe("2026-09-10T13:00:00.000Z");
         expect(first.unreadCount).toBe(1);
         expect(second.id).toBe("c0");
+    });
+
+    it("neither raises the badge nor re-reads the thread that is focused", () => {
+        // A message arriving in the thread somebody is reading is read on
+        // arrival. Raising the badge would leave a number they could only
+        // clear by navigating away and coming back.
+        state().setUnreadCount(2);
+        state().setConversations([conversation({ unreadCount: 0 })], null);
+        state().setFocusedConversation("c1");
+
+        state().applyIncoming(incoming());
+
+        expect(state().unreadCount).toBe(2);
+        expect(state().conversations[0].unreadCount).toBe(0);
+        // The bubble cannot be built from a preview, so the open thread is
+        // told to re-read its newest page.
+        expect(state().threadRevision).toBe(1);
     });
 
     it("raises the badge", () => {
@@ -208,6 +242,28 @@ describe("upsertConversation", () => {
         expect(state().requestCount).toBe(0);
     });
 
+    it("patches the thread that is open, so it hears its own accept", () => {
+        // Everything the thread screen draws — the request banner, the
+        // composer, the closed notice — is read off `activeConversation`.
+        // Left behind, accepting a request would leave the decision on screen
+        // with no composer until the screen was reopened.
+        const pending = request({ id: "c1" });
+        state().setThread(pending, [], null);
+
+        state().upsertConversation(conversation({ id: "c1" }));
+
+        expect(state().activeConversation?.status).toBe("ACCEPTED");
+        expect(state().activeConversation?.isRequest).toBe(false);
+    });
+
+    it("leaves a different open thread alone", () => {
+        state().setThread(conversation({ id: "c9" }), [], null);
+
+        state().upsertConversation(conversation({ id: "c1" }));
+
+        expect(state().activeConversation?.id).toBe("c9");
+    });
+
     it("does not duplicate a row it already holds", () => {
         state().setConversations([conversation({ id: "c1" })], null);
 
@@ -220,6 +276,92 @@ describe("upsertConversation", () => {
     });
 });
 
+describe("the thread", () => {
+    it("puts an appended page at the end, because the array runs newest first", () => {
+        state().setThread(conversation(), [message({ id: "m2" })], "next");
+        state().setThread(conversation(), [message({ id: "m1" })], null, true);
+
+        expect(state().messages.map((m) => m.id)).toEqual(["m2", "m1"]);
+        expect(state().messagesCursor).toBeNull();
+    });
+
+    it("keeps a withdrawn message in its place", () => {
+        // The other participant may have replied to it. Removing the row
+        // would leave their reply answering nothing — which is also why the
+        // server keeps it.
+        state().setThread(
+            conversation(),
+            [message({ id: "m2" }), message({ id: "m1" })],
+            null,
+        );
+
+        state().markMessageDeleted("m1");
+
+        const [, second] = state().messages;
+        expect(state().messages).toHaveLength(2);
+        expect(second.id).toBe("m1");
+        expect(second.isDeleted).toBe(true);
+        expect(second.content).toBe("");
+        expect(second.mediaUrls).toEqual([]);
+    });
+
+    it("swaps an optimistic bubble for the server's copy", () => {
+        state().setThread(conversation(), [], null);
+        state().addMessage(message({ id: "temp-1" }));
+
+        state().replaceMessage("temp-1", message({ id: "m9" }));
+
+        expect(state().messages.map((m) => m.id)).toEqual(["m9"]);
+    });
+
+    it("keeps a sent message a refetch arrived too early to know about", () => {
+        // A thread re-reads its newest page whenever realtime says it is
+        // behind, which replaces the list — so a send that was in flight comes
+        // back to find its placeholder gone. Dropping the answer would hide a
+        // message that was in fact sent, and the obvious response to that is
+        // to send it again.
+        state().setThread(conversation(), [], null);
+        state().addMessage(message({ id: "temp-1" }));
+        state().setThread(conversation(), [message({ id: "m5" })], null);
+
+        state().replaceMessage("temp-1", message({ id: "m9" }));
+
+        expect(state().messages.map((m) => m.id)).toEqual(["m9", "m5"]);
+    });
+
+    it("does not add it twice when the refetch already brought it back", () => {
+        state().setThread(conversation(), [message({ id: "m9" })], null);
+
+        state().replaceMessage("temp-1", message({ id: "m9" }));
+
+        expect(state().messages.map((m) => m.id)).toEqual(["m9"]);
+    });
+
+    it("zeroes the row without touching the global count", () => {
+        // A thread that was never in a loaded page has no `unreadCount` to
+        // subtract, so the caller re-reads the badge from the server instead.
+        state().setUnreadCount(5);
+        state().setConversations([conversation({ unreadCount: 3 })], null);
+
+        state().markConversationRead("c1");
+
+        expect(state().conversations[0].unreadCount).toBe(0);
+        expect(state().unreadCount).toBe(5);
+    });
+
+    it("puts the thread away on the way out", () => {
+        state().setThread(conversation(), [message()], "next");
+        state().setFocusedConversation("c1");
+
+        state().clearThread();
+
+        expect(state().activeConversation).toBeNull();
+        expect(state().messages).toHaveLength(0);
+        expect(state().messagesCursor).toBeNull();
+        expect(state().focusedConversationId).toBeNull();
+    });
+});
+
 describe("reset", () => {
     it("empties both listings and both counts", () => {
         // Sign-out. Without this the next account opens the tab on the
@@ -227,6 +369,8 @@ describe("reset", () => {
         state().setConversations([conversation()], "next");
         state().setRequests([request({ id: "r1" })], "next");
         state().setUnreadCount(7);
+        state().setThread(conversation(), [message()], "next");
+        state().setFocusedConversation("c1");
 
         state().reset();
 
@@ -236,5 +380,8 @@ describe("reset", () => {
         expect(state().requestsCursor).toBeNull();
         expect(state().unreadCount).toBe(0);
         expect(state().requestCount).toBe(0);
+        expect(state().activeConversation).toBeNull();
+        expect(state().messages).toHaveLength(0);
+        expect(state().focusedConversationId).toBeNull();
     });
 });

@@ -10,6 +10,7 @@ import {
     NotificationsIcon,
     ProfileIcon,
 } from "@shared/ui/icons/lucide";
+import { useMessageStore } from "@features/message/ui/store/message.store";
 import { useNotificationStore } from "@features/notifications/ui/store/notification.store";
 import { useSessionStore } from "@core/session/session.store";
 
@@ -37,8 +38,12 @@ import { useSessionStore } from "@core/session/session.store";
 export default function TabsLayout() {
     const insets = useSafeAreaInsets();
     const avatarUrl = useSessionStore((s) => s.user?.avatarUrl);
-    // PR 6 drew this badge and wrote that nothing filled it yet. This is it.
+    // PR 6 drew these badges and wrote that nothing filled them yet. This is
+    // it: the notification count, and beside it the messages one — unread
+    // across accepted conversations only, so a stranger's request cannot
+    // raise it.
     const unreadCount = useNotificationStore((s) => s.unreadCount);
+    const unreadMessages = useMessageStore((s) => s.unreadCount);
 
     return (
         <Tabs>
@@ -95,7 +100,11 @@ export default function TabsLayout() {
                     </TabTrigger>
 
                     <TabTrigger name="messages" href="/messages" asChild>
-                        <TabBarButton icon={MessagesIcon} label="nav.msgs" />
+                        <TabBarButton
+                            icon={MessagesIcon}
+                            label="nav.msgs"
+                            badge={unreadMessages}
+                        />
                     </TabTrigger>
 
                     <TabTrigger name="(profile)" href="/profile" asChild>

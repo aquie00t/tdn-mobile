@@ -15,6 +15,8 @@ import { MIN_FOLLOWS } from "@features/onboarding/domain/follow-requirement";
 import { profileApi } from "@features/profile/data/profile.api";
 import { useApplyColorScheme } from "@shared/hooks/useTheme";
 import { useInitialUnreadCount } from "@features/notifications/ui/hooks/useInitialUnreadCount";
+import { useInitialUnreadMessages } from "@features/message/ui/hooks/useInitialUnreadMessages";
+import { useMessageRealtime } from "@features/message/ui/hooks/useMessageRealtime";
 import { useNotificationRealtime } from "@features/notifications/ui/hooks/useNotificationRealtime";
 import { useOnboardingStore } from "@features/onboarding/ui/store/onboarding.store";
 import { usePushDevice } from "@core/push/usePushDevice";
@@ -231,6 +233,15 @@ function SessionServices() {
     useRealtimeSocket();
     useNotificationRealtime();
     useInitialUnreadCount();
+    /*
+     * Messaging listens on the same socket rather than opening a second one,
+     * which the API asks for explicitly. Both of these belong here for the
+     * reason the notification pair does: the inbox tab is somewhere people go,
+     * and a badge that only started counting once they went there would be
+     * telling them what they already knew.
+     */
+    useMessageRealtime();
+    useInitialUnreadMessages();
     usePushDevice();
     usePushTapRouting();
     return null;

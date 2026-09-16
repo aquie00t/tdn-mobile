@@ -3,7 +3,10 @@ import { create } from "zustand";
 import type {
     Conversation,
     IncomingMessagePayload,
+    MediaRejectedPayload,
     Message,
+    MessageDeletedPayload,
+    MessageReadPayload,
 } from "../../data/message.types";
 
 export interface MessageState {
@@ -88,12 +91,21 @@ export interface MessageState {
         cursor: string | null,
         append?: boolean,
     ) => void;
+    applyHead: (
+        conversation: Conversation,
+        messages: Message[],
+        cursor: string | null,
+    ) => void;
     clearThread: () => void;
     addMessage: (message: Message) => void;
     replaceMessage: (tempId: string, message: Message) => void;
     removeMessage: (id: string) => void;
     markMessageDeleted: (id: string) => void;
     markConversationRead: (id: string) => void;
+
+    applyRead: (payload: MessageReadPayload) => void;
+    applyDeleted: (payload: MessageDeletedPayload) => void;
+    applyMediaRejected: (payload: MediaRejectedPayload) => void;
 
     reset: () => void;
 }
@@ -310,6 +322,44 @@ export const useMessageStore = create<MessageState>((set) => ({
             messagesCursor: cursor,
         })),
 
+    /**
+     * The newest page, over a thread that is already open.
+     *
+     * Not `setThread`, and that is the whole point. A re-read happens for
+     * reasons that have nothing to do with where the reader is — realtime says
+     * a message arrived, a video is still being judged — and replacing the
+     * list would cut a reader who had paged back through history down to the
+     * newest thirty, throw away the cursor that would bring the rest back, and
+     * drop an inverted list to the bottom. Every twenty seconds, in the video
+     * case.
+     *
+     * So the page is merged: rows already held are updated in place, genuinely
+     * new ones go on the front, and the cursor is left where paging put it.
+     * A thread with nothing in it yet takes the page whole, cursor and all —
+     * that is the first read, and there is nothing to preserve.
+     */
+    applyHead: (conversation, messages, cursor) =>
+        set((state) => {
+            if (state.messages.length === 0) {
+                return {
+                    activeConversation: conversation,
+                    messages,
+                    messagesCursor: cursor,
+                };
+            }
+
+            const fresh = new Map(messages.map((m) => [m.id, m]));
+            const held = new Set(state.messages.map((m) => m.id));
+
+            return {
+                activeConversation: conversation,
+                messages: [
+                    ...messages.filter((m) => !held.has(m.id)),
+                    ...state.messages.map((m) => fresh.get(m.id) ?? m),
+                ],
+            };
+        }),
+
     clearThread: () =>
         set({
             activeConversation: null,
@@ -381,6 +431,61 @@ export const useMessageStore = create<MessageState>((set) => ({
                 state.activeConversation?.id === id
                     ? { ...state.activeConversation, unreadCount: 0 }
                     : state.activeConversation,
+        })),
+
+    /**
+     * The other participant opened the thread.
+     *
+     * Read state is per conversation, so this is one watermark rather than a
+     * receipt per message: every message sent before `readAt` counts as seen,
+     * and the thread draws that under the newest one only.
+     */
+    applyRead: (payload) =>
+        set((state) => ({
+            conversations: state.conversations.map((c) =>
+                c.id === payload.conversationId
+                    ? { ...c, otherLastReadAt: payload.readAt }
+                    : c,
+            ),
+            activeConversation:
+                state.activeConversation?.id === payload.conversationId
+                    ? {
+                          ...state.activeConversation,
+                          otherLastReadAt: payload.readAt,
+                      }
+                    : state.activeConversation,
+        })),
+
+    /** The other participant withdrew a message. The row stays, emptied. */
+    applyDeleted: (payload) =>
+        set((state) => ({
+            messages: patchMessage(
+                state.messages,
+                payload.messageId,
+                TOMBSTONE,
+            ),
+        })),
+
+    /**
+     * Moderation refused the attachments on a message the reader sent.
+     *
+     * **The message stays and says so**, which is the opposite of the rule for
+     * posts — and deliberately. A post whose media was refused is
+     * byte-for-byte a post that never had any, so claiming otherwise would
+     * mean reconstructing the difference from session memory and showing two
+     * readers different things. A message carries the fact in a field, so
+     * there is nothing to reconstruct and both sides read the same row.
+     *
+     * Delivered to the sender only: the read path withholds unscanned media,
+     * so from the other side the file never existed.
+     */
+    applyMediaRejected: (payload) =>
+        set((state) => ({
+            messages: patchMessage(state.messages, payload.messageId, {
+                mediaPending: false,
+                mediaRejected: true,
+                mediaUrls: [],
+            }),
         })),
 
     /**

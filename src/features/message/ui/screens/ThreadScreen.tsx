@@ -12,6 +12,7 @@ import { Screen } from "@shared/ui/Screen";
 import { ScreenHeader } from "@shared/layout/ScreenHeader";
 import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
+import { ThreadHeaderTitle } from "../components/ThreadHeaderTitle";
 import { useConversation } from "../hooks/useConversation";
 import { useConversationActions } from "../hooks/useConversationActions";
 import { useDeleteMessage } from "../hooks/useDeleteMessage";
@@ -51,11 +52,13 @@ export function ThreadScreen({ conversationId }: ThreadScreenProps) {
     const {
         isLoading,
         isLoadingOlder,
+        isRefreshing,
         error,
         notFound,
         hasOlder,
         loadOlder,
         retry,
+        refresh,
     } = useConversation(conversationId, isFocused);
 
     const { accept, decline, busy, isBusy } = useConversationActions();
@@ -77,9 +80,17 @@ export function ThreadScreen({ conversationId }: ThreadScreenProps) {
                 otherLastReadAt={conversation?.otherLastReadAt ?? null}
                 isLatestMine={item.id === latestMineId}
                 onDelete={(id) => void remove(id)}
+                onRefresh={() => void refresh()}
+                isRefreshing={isRefreshing}
             />
         ),
-        [conversation?.otherLastReadAt, latestMineId, remove],
+        [
+            conversation?.otherLastReadAt,
+            latestMineId,
+            remove,
+            refresh,
+            isRefreshing,
+        ],
     );
 
     const reachOlder = useCallback(() => {
@@ -105,7 +116,22 @@ export function ThreadScreen({ conversationId }: ThreadScreenProps) {
 
     return (
         <Screen edges={{ top: true, bottom: true }}>
-            <ScreenHeader title={title} />
+            {/*
+             * The header is about the person, not the screen: their face and
+             * handle, and a press that opens their profile. Until the first
+             * page lands there is nobody to draw, so the plain title stands in
+             * rather than an avatar-shaped hole.
+             */}
+            <ScreenHeader
+                title={title}
+                titleContent={
+                    conversation ? (
+                        <ThreadHeaderTitle
+                            participant={conversation.participant}
+                        />
+                    ) : undefined
+                }
+            />
 
             <KeyboardAvoidingView className="flex-1" behavior="padding">
                 {/*

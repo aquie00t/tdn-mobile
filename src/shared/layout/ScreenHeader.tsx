@@ -6,7 +6,21 @@ import { Text } from "../ui/Text";
 import { useI18n } from "../hooks/useI18n";
 
 export interface ScreenHeaderProps {
+    /**
+     * Read by screen readers even when `titleContent` replaces it on screen,
+     * so a header that draws a face still announces whose it is.
+     */
     title: string;
+    /**
+     * Drawn in the title's place.
+     *
+     * For a header that is about *somebody* rather than about a screen — a
+     * conversation, where the other person's face and handle belong at the
+     * top and pressing them opens their profile. A node rather than more
+     * props, because what goes there is the caller's business and this bar
+     * only owns the way back.
+     */
+    titleContent?: React.ReactNode;
     /** Drawn on the right — an action belonging to whatever is below. */
     right?: React.ReactNode;
     /**
@@ -31,6 +45,7 @@ export interface ScreenHeaderProps {
  */
 export function ScreenHeader({
     title,
+    titleContent,
     right,
     showBack = true,
 }: ScreenHeaderProps) {
@@ -53,13 +68,15 @@ export function ScreenHeader({
                 <View className="w-2" />
             )}
 
-            <Text
-                size="lead"
-                numberOfLines={1}
-                className="flex-1 font-semibold"
-            >
-                {title}
-            </Text>
+            {titleContent ?? (
+                <Text
+                    size="lead"
+                    numberOfLines={1}
+                    className="flex-1 font-semibold"
+                >
+                    {title}
+                </Text>
+            )}
 
             {right}
         </View>

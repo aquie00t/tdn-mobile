@@ -1,11 +1,19 @@
 import { Pressable, TextInput, View } from "react-native";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-import { MESSAGE_MAX_LENGTH } from "../../data/message.types";
-import { SendIcon } from "@shared/ui/icons/lucide";
+import { AddMediaIcon, SendIcon } from "@shared/ui/icons/lucide";
+import { getErrorMessage, isOurFailure } from "@shared/utils/error-handler";
+import { MEDIA_ENDPOINTS } from "@shared/utils/media-upload";
+import { MediaPicker } from "@shared/ui/MediaPicker";
+import {
+    MESSAGE_MAX_LENGTH,
+    MESSAGE_MAX_MEDIA,
+} from "../../data/message.types";
+import { reportError } from "@shared/utils/report-error";
 import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
 import { useI18n } from "@shared/hooks/useI18n";
+import { useMediaSelection } from "@shared/hooks/useMediaSelection";
 import { useSendMessage } from "../hooks/useSendMessage";
 
 export interface MessageComposerProps {
@@ -31,37 +39,108 @@ const COUNTER_THRESHOLD = MESSAGE_MAX_LENGTH - 200;
  * next tap a retry rather than a retype — and under the same idempotency key,
  * so a send that in fact arrived is not sent twice.
  *
- * Attachments are their own pull request. The field is text for now.
+ * **Attachments go to `/messages/media`, not `/media`.** The channel is fixed
+ * when the bytes arrive, so a file uploaded for a post cannot be attached to a
+ * message and the other way round — crossing them is `MediaNotOwnedError`,
+ * which is a confusing thing to debug from this end.
+ *
+ * The library only, as in the comment box: two glyphs in a pill this narrow
+ * leave the field about forty per cent of a 360px screen, and the camera stays
+ * where there is room for it.
  */
 export function MessageComposer({ conversationId }: MessageComposerProps) {
     const { t } = useI18n();
     const { send, isSending, error, clearError } =
         useSendMessage(conversationId);
 
+    const media = useMediaSelection(MESSAGE_MAX_MEDIA, MEDIA_ENDPOINTS.message);
+
     const [content, setContent] = useState("");
     const [inputHeight, setInputHeight] = useState(0);
+    /** The upload's own answer, when it is one the writer has to act on. */
+    const [mediaError, setMediaError] = useState<string | null>(null);
+
+    /**
+     * The field as it stands right now, readable from inside an awaited call.
+     *
+     * An upload can take several seconds and the field is not frozen while it
+     * runs — somebody attaching a video and carrying on typing is the ordinary
+     * case, not an edge one. Sending the snapshot taken before the upload
+     * would quietly discard everything typed since.
+     */
+    const latest = useRef(content);
 
     const trimmed = content.trim();
     const isTooLong = trimmed.length > MESSAGE_MAX_LENGTH;
-    const canSubmit = trimmed.length > 0 && !isTooLong && !isSending;
+    /*
+     * Text or media, either alone. The API refuses a message carrying neither
+     * with `EmptyMessageError`, and this is where that is kept unreachable.
+     */
+    const canSubmit =
+        (trimmed.length > 0 || media.assets.length > 0) &&
+        !isTooLong &&
+        !isSending &&
+        !media.isUploading;
 
     const handleSend = async () => {
         if (!canSubmit) return;
 
-        // Cleared before the request, because the bubble is already on screen
-        // and a field still holding the text would read as unsent.
+        setMediaError(null);
+
+        /*
+         * The upload comes first, and the field is cleared only once it is
+         * done: until there are URLs there is no bubble to stand in for the
+         * text, and clearing earlier would leave the message nowhere at all
+         * for as long as the files take.
+         */
+        let mediaUrls: string[];
+
+        try {
+            mediaUrls = await media.upload();
+        } catch (err) {
+            /*
+             * A verdict makes the whole selection unusable — the endpoint
+             * returns no URLs once one file is refused, and nothing here knows
+             * which one — so `handleFailure` empties the picker and the writer
+             * chooses again. Every other failure keeps the files for a retry.
+             */
+            media.handleFailure(err);
+            reportError("message.media", err);
+
+            const message = getErrorMessage(err);
+            if (!isOurFailure(message)) setMediaError(message);
+            return;
+        }
+
+        // Read after the upload rather than before it, so what goes is what
+        // the field holds at the moment the message actually leaves.
+        const body = latest.current.trim();
+
+        // Cleared now: the bubble is about to be on screen, and a field still
+        // holding the text would read as unsent.
         setContent("");
+        latest.current = "";
         setInputHeight(0);
+
+        if (await send(body, mediaUrls)) {
+            media.clear();
+            return;
+        }
 
         /*
          * Handed back if it did not go — but never over the top of something
          * else. A send can take the full fifteen seconds of the request
          * budget, and somebody who gave up waiting and started typing the next
          * message would otherwise watch it be replaced by the one that failed.
+         *
+         * The attachments stay in the picker for the same reason, and go back
+         * up under the same idempotency key.
          */
-        if (!(await send(trimmed))) {
-            setContent((typed) => (typed.length > 0 ? typed : trimmed));
-        }
+        setContent((typed) => {
+            const restored = typed.length > 0 ? typed : body;
+            latest.current = restored;
+            return restored;
+        });
     };
 
     return (
@@ -78,8 +157,14 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
                         value={content}
                         onChangeText={(next) => {
                             setContent(next);
+                            // Written here rather than during render: a ref is
+                            // not state, and reading or writing one while
+                            // rendering is how a component stops updating when
+                            // it should.
+                            latest.current = next;
                             // Typing retracts the answer to the last attempt.
                             clearError();
+                            setMediaError(null);
                         }}
                         placeholder={t("messages.placeholder")}
                         multiline
@@ -98,6 +183,37 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
                         autoCapitalize="sentences"
                         className="flex-1 py-2.5 text-base text-ink placeholder:text-ink/35 selection:text-accent"
                     />
+
+                    {/*
+                     * Inside the pill rather than on a row of its own. A
+                     * permanent control row under a docked composer is height
+                     * spent whether or not anybody attaches anything, and the
+                     * thread above it wants the space.
+                     */}
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t("messages.attach")}
+                        /*
+                         * Shut while a message is on its way, upload included.
+                         * A file picked in that window would be cleared along
+                         * with the ones that were sent, and vanish from the
+                         * picker having never gone anywhere.
+                         */
+                        disabled={
+                            isSending ||
+                            media.isUploading ||
+                            media.remainingSlots <= 0
+                        }
+                        onPress={() => void media.pickFromLibrary()}
+                        hitSlop={8}
+                        className={
+                            media.remainingSlots <= 0
+                                ? "pl-1 opacity-30"
+                                : "pl-1"
+                        }
+                    >
+                        <AddMediaIcon size={18} className="text-ink/50" />
+                    </Pressable>
                 </View>
 
                 <Pressable
@@ -112,7 +228,7 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
                             : "mb-1 h-9 w-9 items-center justify-center rounded-full bg-surface-2"
                     }
                 >
-                    {isSending ? (
+                    {isSending || media.isUploading ? (
                         <Spinner />
                     ) : (
                         <SendIcon
@@ -125,14 +241,31 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
                 </Pressable>
             </View>
 
+            {/* The grid only, and only once something is in it. */}
+            {media.assets.length > 0 && (
+                <View className="pt-2">
+                    <MediaPicker
+                        showControls={false}
+                        assets={media.assets}
+                        onPickFromLibrary={() => void media.pickFromLibrary()}
+                        onTakePhoto={() => void media.takePhoto()}
+                        onRemove={media.removeAsset}
+                        remainingSlots={media.remainingSlots}
+                        max={media.max}
+                        disabled={isSending || media.isUploading}
+                    />
+                </View>
+            )}
+
             {/*
-             * Only an answer the writer has to act on — the write budget is
-             * five a minute, which an ordinary exchange reaches. A failure of
-             * ours leaves this empty and puts the text back in the field.
+             * Only an answer the writer has to act on — a refused file, or the
+             * write budget of five a minute, which an ordinary exchange
+             * reaches. A failure of ours leaves this empty and puts the text
+             * back in the field.
              */}
-            {error && (
+            {(error ?? mediaError) && (
                 <Text size="caption" tone="danger" className="pt-1">
-                    {error}
+                    {error ?? mediaError}
                 </Text>
             )}
 

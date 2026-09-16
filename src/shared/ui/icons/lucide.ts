@@ -14,6 +14,7 @@ import {
     Hash,
     Heart,
     Home,
+    ImageOff,
     ImagePlus,
     Mail,
     MessageCircle,
@@ -70,6 +71,15 @@ export const ProfileIcon = themed(CircleUser);
 export const HiddenIcon = themed(EyeOff);
 export const PendingIcon = themed(Clock);
 export const RefreshIcon = themed(RefreshCw);
+
+/**
+ * Attachments moderation refused.
+ *
+ * Only a direct message draws this. A post whose media was refused is
+ * byte-for-byte a post that never had any, so there is nothing there to mark;
+ * a message says so in a field, and both sides read the same row.
+ */
+export const MediaRemovedIcon = themed(ImageOff);
 
 /** Getting back, and getting to the switches. */
 export const SettingsIcon = themed(Settings);

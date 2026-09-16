@@ -20,7 +20,7 @@ vi.mock("expo-secure-store", () => ({
 import { BASE_URL } from "@core/api/client";
 import { clearTokens, setTokens } from "@core/session/tokens";
 import { MODERATION_RETRY_DELAY_MS } from "./media-errors";
-import { uploadMedia } from "./media-upload";
+import { MEDIA_ENDPOINTS, uploadMedia } from "./media-upload";
 
 const BASE = BASE_URL;
 
@@ -74,6 +74,50 @@ describe("uploadMedia", () => {
         // would fail to parse a body it was handed correctly.
         expect(contentType).toContain("multipart/form-data");
         expect(contentType).toContain("boundary=");
+    });
+
+    it("sends a message's files to the message channel", async () => {
+        // The channel is fixed when the bytes arrive: a file uploaded here
+        // cannot be attached to a post, and one uploaded to `/media` cannot be
+        // attached to a message. Crossing them is `MediaNotOwnedError`, which
+        // is a confusing thing to debug from the far end.
+        server.use(
+            http.post(`${BASE}/messages/media`, () =>
+                ok({ mediaUrls: ["m1"] }),
+            ),
+        );
+
+        await expect(
+            uploadMedia([asset], MEDIA_ENDPOINTS.message),
+        ).resolves.toEqual(["m1"]);
+    });
+
+    it("defaults to the post channel", async () => {
+        // No handler for `/messages/media` is registered, and MSW errors on an
+        // unhandled request — so this passing is the assertion.
+        server.use(http.post(`${BASE}/media`, () => ok({ mediaUrls: ["u1"] })));
+
+        await expect(uploadMedia([asset])).resolves.toEqual(["u1"]);
+    });
+
+    it("uploads once per set of files, so a retry is not a second upload", async () => {
+        // Uploading is not idempotent: the same bytes twice are two sets of
+        // files with two sets of URLs. `useMediaSelection` caches the result
+        // for exactly this reason — a composer retrying a failed send under a
+        // held idempotency key must send the same body, or the key is fresh
+        // and the retry is the double post it exists to prevent. This asserts
+        // the half that lives here: each call really is a request.
+        let calls = 0;
+        server.use(
+            http.post(`${BASE}/media`, () => {
+                calls += 1;
+                return ok({ mediaUrls: [`u${calls}`] });
+            }),
+        );
+
+        await expect(uploadMedia([asset])).resolves.toEqual(["u1"]);
+        await expect(uploadMedia([asset])).resolves.toEqual(["u2"]);
+        expect(calls).toBe(2);
     });
 
     it("absorbs one unreachable moderation provider", async () => {

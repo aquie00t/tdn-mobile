@@ -1,5 +1,6 @@
 import { FlatList, Pressable, View } from "react-native";
 import { useCallback, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "expo-router";
 
 import { Button } from "@shared/ui/Button";
@@ -9,7 +10,12 @@ import { FeedFilterRow } from "../components/FeedFilterRow";
 import { feedIdentity } from "../../domain/feed-filters";
 import { FeedTypeStrip } from "../components/FeedTypeStrip";
 import { PostCard } from "../components/PostCard";
-import type { Post, PostCategory, PostType } from "../../data/feed.types";
+import type {
+    FeedTab,
+    Post,
+    PostCategory,
+    PostType,
+} from "../../data/feed.types";
 import { Screen } from "@shared/ui/Screen";
 import { CreateIcon } from "@shared/ui/icons/lucide";
 import { Spinner } from "@shared/ui/Spinner";
@@ -34,13 +40,35 @@ const INITIAL_ROWS = 8;
  */
 const FILTERABLE_TYPES = new Set<PostType>(["TECH_NEWS", "SYSTEM_UPDATE"]);
 
-export function FeedScreen() {
+export interface FeedScreenProps {
+    /**
+     * What the Articles tab shows.
+     *
+     * A node handed in by the route, because articles are another feature and
+     * a feature may not import another — the same arrangement that puts a
+     * Message button on a profile. Without one the tab is not offered at all,
+     * so this screen is still complete on its own.
+     */
+    articles?: ReactNode;
+}
+
+export function FeedScreen({ articles }: FeedScreenProps) {
     const { t } = useI18n();
     const router = useRouter();
-    const [type, setType] = useState<PostType>("COMMUNITY");
+    const [tab, setTab] = useState<FeedTab>("COMMUNITY");
+    /*
+     * Everything below reads a post type, and the Articles tab is not one. It
+     * keeps whichever feed was last open, so switching away and back does not
+     * land somebody on Community having left News.
+     */
+    const [lastType, setLastType] = useState<PostType>("COMMUNITY");
+    const isArticles = tab === "ARTICLES";
+    const type = isArticles ? lastType : (tab as PostType);
     const [followedOnly, setFollowedOnly] = useState(false);
     const [categories, setCategories] = useState<PostCategory[]>([]);
-    const canFilter = FILTERABLE_TYPES.has(type);
+    // Articles have their own narrowings and none of these: the chips name
+    // post categories and "only who I follow" is a query on the post endpoint.
+    const canFilter = !isArticles && FILTERABLE_TYPES.has(type);
     const {
         posts,
         isLoading,
@@ -92,13 +120,25 @@ export function FeedScreen() {
     return (
         <Screen edges={{ top: true, bottom: false }}>
             <FeedTypeStrip
-                active={type}
+                active={tab}
                 onSelect={(next) => {
-                    setType(next);
-                    // The narrowings belong to the feed that was open. Carried
-                    // across, a reader who filtered News to Frontend would find
-                    // Updates already filtered by something they never chose
-                    // there — and the web clears them for the same reason.
+                    setTab(next);
+
+                    /*
+                     * Articles change neither of these, and that is the point
+                     * of the branch rather than a saving. The narrowings
+                     * belong to the feed that was open: carried across to
+                     * another feed, a reader who filtered News to Frontend
+                     * would find Updates already filtered by something they
+                     * never chose there — but stepping *out* to Articles and
+                     * back is not leaving that feed, and clearing them would
+                     * lose the chips they did choose. It would also change
+                     * `feedIdentity` and send a request for a list nobody can
+                     * see.
+                     */
+                    if (next === "ARTICLES") return;
+
+                    setLastType(next);
                     setFollowedOnly(false);
                     setCategories([]);
                 }}
@@ -135,7 +175,14 @@ export function FeedScreen() {
              * request without raising this flag, so the list stays put under
              * its own spinner.
              */}
-            {isLoading ? (
+            {/*
+             * Articles are drawn by whatever the route handed over, and
+             * everything below is left alone — a different resource, a
+             * different endpoint, and a list that owns its own paging.
+             */}
+            {isArticles ? (
+                articles
+            ) : isLoading ? (
                 <Spinner center />
             ) : error ? (
                 <ErrorState
@@ -187,9 +234,10 @@ export function FeedScreen() {
              * a post written from either of those tabs would be a Community
              * post the reader then cannot find in the list they wrote it from.
              * The web hides its composer on the same two tabs for the same
-             * reason.
+             * reason — and never over the Articles tab, where a "write a post"
+             * control would be answering a question nobody on that tab asked.
              */}
-            {type === "COMMUNITY" && (
+            {!isArticles && type === "COMMUNITY" && (
                 <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={t("postBox.post")}

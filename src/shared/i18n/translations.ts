@@ -56,6 +56,13 @@ const en = {
     "article.like": "Like article",
     "article.bookmark": "Bookmark article",
     "article.share": "Share article",
+    "article.empty": "No articles yet",
+    "article.emptyHint": "Long-form writing from the community lands here.",
+    "article.notFound": "Article not found",
+    "article.notFoundHint":
+        "It may have been removed, or it was never published.",
+    "article.noMore": "No more articles",
+    "article.by": "by {{name}}",
 
     "editor.newTitle": "New article",
     "editor.editTitle": "Edit article",
@@ -824,6 +831,12 @@ const tr: Record<TranslationKey, string> = {
     "article.like": "Makaleyi beğen",
     "article.bookmark": "Makaleyi kaydet",
     "article.share": "Makaleyi paylaş",
+    "article.empty": "Henüz makale yok",
+    "article.emptyHint": "Topluluğun uzun yazıları burada görünür.",
+    "article.notFound": "Makale bulunamadı",
+    "article.notFoundHint": "Kaldırılmış olabilir ya da hiç yayımlanmadı.",
+    "article.noMore": "Daha fazla makale yok",
+    "article.by": "{{name}} yazdı",
 
     "editor.newTitle": "Yeni makale",
     "editor.editTitle": "Makaleyi düzenle",

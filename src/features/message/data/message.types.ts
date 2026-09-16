@@ -101,3 +101,33 @@ export interface ThreadPage {
 
 /** Server-enforced. Mirrored so the composer never sends a doomed body. */
 export const MESSAGE_MAX_LENGTH = 4000;
+
+/**
+ * `POST /messages/media` refuses a fifth file, so nothing offers one. The same
+ * number `/media` holds for posts, and the same reason it is mirrored.
+ */
+export const MESSAGE_MAX_MEDIA = 4;
+
+export interface MessageReadPayload {
+    conversationId: string;
+    /** Who did the reading. */
+    senderId: string;
+    readAt: string;
+}
+
+export interface MessageDeletedPayload {
+    conversationId: string;
+    messageId: string;
+    senderId: string;
+}
+
+/**
+ * Delivered to the **sender only**. The read path withholds unscanned media,
+ * so from the recipient's side the file never existed and there is nothing to
+ * withdraw.
+ */
+export interface MediaRejectedPayload {
+    conversationId: string;
+    messageId: string;
+    senderId: string;
+}

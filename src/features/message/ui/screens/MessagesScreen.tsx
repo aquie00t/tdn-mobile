@@ -201,18 +201,32 @@ export function MessagesScreen() {
         <Screen edges={{ top: true, bottom: false }}>
             <ScreenHeader title={t("messages.title")} showBack={false} />
 
-            <View className="flex-row border-b border-ink/10">
-                <TabButton
-                    label={t("messages.tabInbox")}
-                    isActive={isInbox}
-                    onPress={() => setTab("inbox")}
-                />
-                <TabButton
-                    label={t("messages.tabRequests")}
-                    badge={formatBadgeCount(requestCount)}
-                    isActive={!isInbox}
-                    onPress={() => setTab("requests")}
-                />
+            {/*
+             * A segmented control rather than two words over a hairline.
+             *
+             * The underlined strip is right on a profile, where the tabs sit
+             * under a banner, a name and a row of counts and are the least of
+             * what is on screen. Here they are the *only* thing between the
+             * title and the list, and drawn that way they read as a caption
+             * somebody forgot to finish — two short words adrift in a band of
+             * empty space. A filled track with a raised active segment gives
+             * them the weight of a control, and it is the shape a phone uses
+             * for exactly this choice.
+             */}
+            <View className="px-4 py-3">
+                <View className="flex-row gap-1 rounded-full bg-surface-1 p-1">
+                    <SegmentButton
+                        label={t("messages.tabInbox")}
+                        isActive={isInbox}
+                        onPress={() => setTab("inbox")}
+                    />
+                    <SegmentButton
+                        label={t("messages.tabRequests")}
+                        badge={formatBadgeCount(requestCount)}
+                        isActive={!isInbox}
+                        onPress={() => setTab("requests")}
+                    />
+                </View>
             </View>
 
             {/*
@@ -305,7 +319,7 @@ function ListPane({
     );
 }
 
-interface TabButtonProps {
+interface SegmentButtonProps {
     label: string;
     /** Already formatted — `null` when there is nothing waiting. */
     badge?: string | null;
@@ -314,43 +328,46 @@ interface TabButtonProps {
 }
 
 /**
- * One of the two strip buttons, as the saved list draws them: the underline is
- * inset from both edges, or a rule the full width of the button reads as a
- * border between the two rather than a mark on one.
+ * One half of the segmented control.
+ *
+ * The active half is raised out of the track with `surface-3` rather than
+ * marked with a colour, so the pair reads as a switch in both themes without
+ * either state borrowing the accent — which here belongs to the badge, and
+ * would be saying two different things at once if the segment took it too.
  */
-function TabButton({ label, badge, isActive, onPress }: TabButtonProps) {
+function SegmentButton({
+    label,
+    badge,
+    isActive,
+    onPress,
+}: SegmentButtonProps) {
     return (
         <Pressable
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
             onPress={onPress}
-            className="flex-1 items-center py-3 active:bg-ink/5"
+            className={cn(
+                "flex-1 flex-row items-center justify-center gap-1.5 rounded-full py-2",
+                isActive ? "bg-surface-3" : "active:bg-ink/5",
+            )}
         >
-            <View className="flex-row items-center gap-1.5">
-                <Text
-                    size="small"
-                    tone={isActive ? "default" : "subtle"}
-                    className="font-medium"
-                >
-                    {label}
-                </Text>
-                {badge && (
-                    <View className="min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 py-0.5">
-                        <Text
-                            tone="onFill"
-                            className="text-[10px] font-bold leading-none"
-                        >
-                            {badge}
-                        </Text>
-                    </View>
-                )}
-            </View>
-            <View
-                className={cn(
-                    "mt-2 h-0.5 w-12 rounded-full",
-                    isActive ? "bg-ink" : "bg-transparent",
-                )}
-            />
+            <Text
+                size="small"
+                tone={isActive ? "default" : "muted"}
+                className="font-semibold"
+            >
+                {label}
+            </Text>
+            {badge && (
+                <View className="min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 py-0.5">
+                    <Text
+                        tone="onFill"
+                        className="text-[10px] font-bold leading-none"
+                    >
+                        {badge}
+                    </Text>
+                </View>
+            )}
         </Pressable>
     );
 }

@@ -362,6 +362,130 @@ describe("the thread", () => {
     });
 });
 
+describe("applyHead", () => {
+    it("takes the page whole when nothing is open yet", () => {
+        state().applyHead(conversation(), [message({ id: "m1" })], "older");
+
+        expect(state().activeConversation?.id).toBe("c1");
+        expect(state().messages.map((m) => m.id)).toEqual(["m1"]);
+        expect(state().messagesCursor).toBe("older");
+    });
+
+    it("keeps history the reader paged in, and the cursor that reaches more", () => {
+        // This runs on a timer while a video is being judged and again on
+        // every arriving message. Replacing the list would cut somebody
+        // reading back through a conversation down to the newest page, drop
+        // an inverted list to the bottom, and throw away the cursor that
+        // would bring the rest back — every twenty seconds, in the video case.
+        state().setThread(
+            conversation(),
+            [message({ id: "m3" }), message({ id: "m2" })],
+            "older",
+        );
+        state().setThread(conversation(), [message({ id: "m1" })], null, true);
+
+        state().applyHead(conversation(), [message({ id: "m3" })], "newer");
+
+        expect(state().messages.map((m) => m.id)).toEqual(["m3", "m2", "m1"]);
+        expect(state().messagesCursor).toBeNull();
+    });
+
+    it("puts a message that arrived since on the front", () => {
+        state().setThread(conversation(), [message({ id: "m1" })], null);
+
+        state().applyHead(
+            conversation(),
+            [message({ id: "m2" }), message({ id: "m1" })],
+            null,
+        );
+
+        expect(state().messages.map((m) => m.id)).toEqual(["m2", "m1"]);
+    });
+
+    it("updates a row it already holds in place", () => {
+        // How a video that has finished being judged reaches the screen.
+        state().setThread(
+            conversation(),
+            [message({ id: "m1", mediaPending: true })],
+            null,
+        );
+
+        state().applyHead(
+            conversation(),
+            [message({ id: "m1", mediaPending: false, mediaUrls: ["u1"] })],
+            null,
+        );
+
+        expect(state().messages).toHaveLength(1);
+        expect(state().messages[0].mediaPending).toBe(false);
+        expect(state().messages[0].mediaUrls).toEqual(["u1"]);
+    });
+});
+
+describe("the other three chat events", () => {
+    it("moves the watermark on the row and on the open thread", () => {
+        // Read state is per conversation — one watermark each way, not a
+        // receipt per message.
+        state().setConversations([conversation()], null);
+        state().setThread(conversation(), [], null);
+
+        state().applyRead({
+            conversationId: "c1",
+            senderId: "u2",
+            readAt: "2026-09-10T14:00:00.000Z",
+        });
+
+        expect(state().conversations[0].otherLastReadAt).toBe(
+            "2026-09-10T14:00:00.000Z",
+        );
+        expect(state().activeConversation?.otherLastReadAt).toBe(
+            "2026-09-10T14:00:00.000Z",
+        );
+    });
+
+    it("empties a message the other side withdrew, in place", () => {
+        state().setThread(
+            conversation(),
+            [message({ id: "m2" }), message({ id: "m1" })],
+            null,
+        );
+
+        state().applyDeleted({
+            conversationId: "c1",
+            messageId: "m1",
+            senderId: "u2",
+        });
+
+        const [, second] = state().messages;
+        expect(state().messages).toHaveLength(2);
+        expect(second.isDeleted).toBe(true);
+        expect(second.content).toBe("");
+    });
+
+    it("keeps a message whose attachments were refused, and marks it", () => {
+        // The one place this app says "media removed" out loud. A post whose
+        // media was refused is byte-for-byte a post that never had any; a
+        // message carries the fact in a field, so both sides read one row.
+        state().setThread(
+            conversation(),
+            [message({ id: "m1", mediaPending: true, mediaUrls: ["u1"] })],
+            null,
+        );
+
+        state().applyMediaRejected({
+            conversationId: "c1",
+            messageId: "m1",
+            senderId: "u1",
+        });
+
+        const [only] = state().messages;
+        expect(only.mediaRejected).toBe(true);
+        expect(only.mediaPending).toBe(false);
+        expect(only.mediaUrls).toEqual([]);
+        expect(only.content).toBe("hello");
+    });
+});
+
 describe("reset", () => {
     it("empties both listings and both counts", () => {
         // Sign-out. Without this the next account opens the tab on the

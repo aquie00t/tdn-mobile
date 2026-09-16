@@ -6,6 +6,20 @@ import { messageApi, THREAD_PAGE_LIMIT } from "../../data/message.api";
 import { platform } from "@core/platform";
 import { useMessageStore } from "../store/message.store";
 
+/**
+ * Between checks on a video still being judged. The worker runs about once a
+ * minute, so anything shorter asks a question whose answer cannot have
+ * changed. The same numbers the feed uses.
+ */
+const POLL_INTERVAL_MS = 20_000;
+
+/**
+ * When to stop asking. A video unjudged after five minutes is not about to be,
+ * and a thread left open on it should not keep asking all afternoon. The
+ * refresh under the placeholder stays either way.
+ */
+const POLL_LIMIT_MS = 5 * 60_000;
+
 function isNotFound(err: unknown): boolean {
     return (
         !!err &&
@@ -35,15 +49,20 @@ export function useConversation(
     isScreenFocused: boolean,
 ) {
     const setThread = useMessageStore((s) => s.setThread);
+    const applyHead = useMessageStore((s) => s.applyHead);
     const clearThread = useMessageStore((s) => s.clearThread);
     const setFocused = useMessageStore((s) => s.setFocusedConversation);
     const markConversationRead = useMessageStore((s) => s.markConversationRead);
     const setUnreadCount = useMessageStore((s) => s.setUnreadCount);
     const cursor = useMessageStore((s) => s.messagesCursor);
     const threadRevision = useMessageStore((s) => s.threadRevision);
+    const hasPendingMedia = useMessageStore((s) =>
+        s.messages.some((m) => m.mediaPending),
+    );
 
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [notFound, setNotFound] = useState(false);
 
@@ -115,7 +134,9 @@ export function useConversation(
 
             if (generation.current !== run) return;
 
-            setThread(
+            // Merged rather than set: this runs on a timer and on every
+            // arriving message, and the reader may be pages back in history.
+            applyHead(
                 page.data.conversation,
                 page.data.messages,
                 page.meta?.nextCursor ?? null,
@@ -135,11 +156,22 @@ export function useConversation(
              */
             if (generation.current === run) setIsLoading(false);
         }
-    }, [conversationId, setThread]);
+    }, [conversationId, applyHead]);
 
     const retry = useCallback(async () => {
         setIsLoading(true);
         await fetchHead();
+    }, [fetchHead]);
+
+    /**
+     * The same read with its own flag, for the button under a video that is
+     * still being checked. It leaves the messages on screen — there is nothing
+     * wrong with them, only something missing from one.
+     */
+    const refresh = useCallback(async () => {
+        setIsRefreshing(true);
+        await fetchHead();
+        setIsRefreshing(false);
     }, [fetchHead]);
 
     /** Backwards through history, a page at a time. */
@@ -253,13 +285,40 @@ export function useConversation(
         void fetchHead().then(markRead);
     }, [threadRevision, fetchHead, markRead]);
 
+    /*
+     * A video attached to a message is stored unscanned and cleared by a
+     * background worker, and there is no endpoint that answers for a single
+     * message — so the wait is watched by re-reading the newest page.
+     *
+     * **Where the web reads `document.hidden`, this asks the app-state port**,
+     * as the feed's version does: a backgrounded app is not being read, and
+     * Android throttles its timers without saying by how much, so the interval
+     * keeps ticking and simply declines to spend a request. Asking again on
+     * return is what matters, and the next tick after the app comes back does
+     * it.
+     */
+    useEffect(() => {
+        if (!hasPendingMedia) return;
+
+        const startedAt = Date.now();
+        const id = setInterval(() => {
+            if (Date.now() - startedAt > POLL_LIMIT_MS) return;
+            if (!platform.appState.isForeground()) return;
+            void fetchHead();
+        }, POLL_INTERVAL_MS);
+
+        return () => clearInterval(id);
+    }, [hasPendingMedia, fetchHead]);
+
     return {
         isLoading,
         isLoadingOlder,
+        isRefreshing,
         error,
         notFound,
         hasOlder: cursor !== null,
         loadOlder,
         retry,
+        refresh,
     };
 }

@@ -554,7 +554,7 @@ const en = {
     "media.removedHint": "The attachments broke the community rules.",
 
     "messages.title": "Messages",
-    "messages.tabInbox": "Messages",
+    "messages.tabInbox": "Chats",
     "messages.tabRequests": "Requests",
     "messages.empty": "No conversations yet",
     "messages.emptyHint": "Open a profile and send the first message.",
@@ -584,6 +584,7 @@ const en = {
     "messages.placeholder": "Write a message",
     "messages.send": "Send",
     "messages.attach": "Add media",
+    "messages.attachment": "Attachment",
     "messages.removeAttachment": "Remove attachment",
     "messages.requestNotice":
         "{{name}} wants to send you messages. They cannot see whether you have read this.",
@@ -1286,7 +1287,7 @@ const tr: Record<TranslationKey, string> = {
     "media.removedHint": "Ekler topluluk kurallarına aykırıydı.",
 
     "messages.title": "Mesajlar",
-    "messages.tabInbox": "Mesajlar",
+    "messages.tabInbox": "Sohbetler",
     "messages.tabRequests": "İstekler",
     "messages.empty": "Henüz sohbet yok",
     "messages.emptyHint": "Birinin profilini açıp ilk mesajı gönderin.",
@@ -1314,6 +1315,7 @@ const tr: Record<TranslationKey, string> = {
     "messages.placeholder": "Bir mesaj yazın",
     "messages.send": "Gönder",
     "messages.attach": "Medya ekle",
+    "messages.attachment": "Ek",
     "messages.removeAttachment": "Eki kaldır",
     "messages.requestNotice":
         "{{name}} size mesaj göndermek istiyor. Bunu okuduğunuzu göremez.",

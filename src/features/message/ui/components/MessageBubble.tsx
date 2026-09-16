@@ -2,9 +2,13 @@ import { Pressable, View } from "react-native";
 import { memo, useState } from "react";
 
 import { Button } from "@shared/ui/Button";
+import { MediaRemovedIcon } from "@shared/ui/icons/lucide";
 import type { Message } from "../../data/message.types";
 import { Modal } from "@shared/ui/Modal";
+import { PendingMedia } from "@shared/ui/PendingMedia";
+import { PostMedia } from "@shared/ui/PostMedia";
 import { RichText } from "@shared/ui/RichText";
+import { SensitiveMedia } from "@shared/ui/SensitiveMedia";
 import { Text } from "@shared/ui/Text";
 import { isPendingMessage } from "../hooks/useSendMessage";
 import { useI18n } from "@shared/hooks/useI18n";
@@ -27,6 +31,9 @@ export interface MessageBubbleProps {
      */
     isLatestMine: boolean;
     onDelete: (id: string) => void;
+    /** Asks the thread for its newest page, for a video still being checked. */
+    onRefresh: () => void;
+    isRefreshing: boolean;
 }
 
 /**
@@ -42,14 +49,24 @@ export interface MessageBubbleProps {
  * phone has no hover, and a visible button under every one of your own
  * messages spends a row of space on something used once a month.
  *
- * Media is not drawn here yet — attachments are their own pull request, along
- * with the three flags that describe them. Until then a message is its text.
+ * **The four server flags are independent and are drawn independently.** A
+ * withdrawn message can be one that also had its media refused, and a
+ * sensitive one can still be waiting on its video.
+ *
+ * `mediaRejected` is the one place this app says "media removed" out loud, and
+ * that is deliberate. The rule for posts is the opposite: a post whose media
+ * was refused is byte-for-byte a post that never had any, so claiming
+ * otherwise would mean reconstructing the difference from session memory and
+ * showing two readers different things. A message carries the fact in a field,
+ * so there is nothing to reconstruct and both sides read the same row.
  */
 function MessageBubbleView({
     message,
     otherLastReadAt,
     isLatestMine,
     onDelete,
+    onRefresh,
+    isRefreshing,
 }: MessageBubbleProps) {
     const { t } = useI18n();
     const [isConfirming, setIsConfirming] = useState(false);
@@ -81,7 +98,12 @@ function MessageBubbleView({
         <View className={isMine ? "items-end" : "items-start"}>
             <Pressable
                 accessibilityRole="text"
-                accessibilityLabel={message.content}
+                /*
+                 * A message with only attachments still has to announce
+                 * itself. Not the attach button's label — "Add media" is an
+                 * instruction, and a screen reader would offer it as one.
+                 */
+                accessibilityLabel={message.content || t("messages.attachment")}
                 accessibilityHint={canDelete ? t("messages.delete") : undefined}
                 onLongPress={
                     canDelete ? () => setIsConfirming(true) : undefined
@@ -99,10 +121,43 @@ function MessageBubbleView({
                  * which is exactly what `RichText` does without them. Links
                  * and bold still read.
                  */}
-                <RichText
-                    text={message.content}
-                    tone={isMine ? "onFill" : "default"}
-                />
+                {message.content.length > 0 && (
+                    <RichText
+                        text={message.content}
+                        tone={isMine ? "onFill" : "default"}
+                    />
+                )}
+
+                {message.mediaPending && (
+                    <View className="pt-2">
+                        <PendingMedia
+                            onRefresh={onRefresh}
+                            isRefreshing={isRefreshing}
+                        />
+                    </View>
+                )}
+
+                {message.mediaRejected && (
+                    <View className="mt-2 flex-row items-center gap-2 rounded-xl border border-ink/10 bg-surface-2 px-3 py-2">
+                        <MediaRemovedIcon size={16} className="text-ink/50" />
+                        <View className="flex-1">
+                            <Text size="caption" className="font-semibold">
+                                {t("media.removed")}
+                            </Text>
+                            <Text size="caption" tone="subtle">
+                                {t("media.removedHint")}
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
+                {message.mediaUrls.length > 0 && (
+                    <View className="pt-2">
+                        <SensitiveMedia isSensitive={message.isSensitive}>
+                            <PostMedia uris={message.mediaUrls} />
+                        </SensitiveMedia>
+                    </View>
+                )}
             </Pressable>
 
             {isMine && isLatestMine && (

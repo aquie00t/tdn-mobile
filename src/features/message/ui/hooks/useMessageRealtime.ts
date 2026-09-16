@@ -1,6 +1,11 @@
 import { useEffect } from "react";
 
-import type { IncomingMessagePayload } from "../../data/message.types";
+import type {
+    IncomingMessagePayload,
+    MediaRejectedPayload,
+    MessageDeletedPayload,
+    MessageReadPayload,
+} from "../../data/message.types";
 import { subscribeToRealtime } from "@core/realtime/useRealtimeSocket";
 import { useMessageStore } from "../store/message.store";
 
@@ -29,7 +34,44 @@ function isIncoming(payload: unknown): payload is IncomingMessagePayload {
 }
 
 /**
- * Turns the two arriving-message events into inbox state.
+ * Whether a frame carries a conversation and a message id.
+ *
+ * `message:deleted` and `message:media_rejected` share this shape. Both act on
+ * a single row, so the id is the field that has to be there — one missing
+ * would patch nothing and be indistinguishable from a message that was never
+ * loaded.
+ */
+function isMessageEvent(
+    payload: unknown,
+): payload is MessageDeletedPayload | MediaRejectedPayload {
+    if (typeof payload !== "object" || payload === null) return false;
+
+    const frame = payload as Partial<MessageDeletedPayload>;
+    return (
+        typeof frame.conversationId === "string" &&
+        typeof frame.messageId === "string"
+    );
+}
+
+/**
+ * Whether a frame carries a read watermark that a `Date` can be built from.
+ *
+ * `readAt` is compared against every outgoing message's `createdAt`, so an
+ * unparseable one would quietly decide that nothing had been seen.
+ */
+function isRead(payload: unknown): payload is MessageReadPayload {
+    if (typeof payload !== "object" || payload === null) return false;
+
+    const frame = payload as Partial<MessageReadPayload>;
+    return (
+        typeof frame.conversationId === "string" &&
+        typeof frame.readAt === "string" &&
+        !Number.isNaN(Date.parse(frame.readAt))
+    );
+}
+
+/**
+ * Turns the five chat events into inbox and thread state.
  *
  * The socket knows nothing about what its events mean, so this is the
  * messaging half of that arrangement — `useNotificationRealtime` is the other.
@@ -42,22 +84,43 @@ function isIncoming(payload: unknown): payload is IncomingMessagePayload {
  * notification attached to it. The store keeps them apart; this only routes
  * them.
  *
- * The other three chat events — `message:read`, `message:deleted`,
- * `message:media_rejected` — are all about a thread's contents, and land with
- * the thread screen.
+ * The other three act on a thread's contents rather than on the listings, and
+ * each is narrowed by what it writes rather than by its whole shape — see the
+ * guards above. `message:media_rejected` reaches the sender only, which is why
+ * nothing here checks who it is about: the server has already decided that.
  */
 export function useMessageRealtime(): void {
     useEffect(
         () =>
             subscribeToRealtime((event, payload) => {
-                if (event !== "message:new" && event !== "conversation:request")
-                    return;
-                if (!isIncoming(payload)) return;
-
                 const store = useMessageStore.getState();
 
-                if (event === "message:new") store.applyIncoming(payload);
-                else store.applyRequest(payload);
+                switch (event) {
+                    case "message:new":
+                        if (isIncoming(payload)) store.applyIncoming(payload);
+                        return;
+
+                    case "conversation:request":
+                        if (isIncoming(payload)) store.applyRequest(payload);
+                        return;
+
+                    case "message:read":
+                        if (isRead(payload)) store.applyRead(payload);
+                        return;
+
+                    case "message:deleted":
+                        if (isMessageEvent(payload))
+                            store.applyDeleted(payload);
+                        return;
+
+                    case "message:media_rejected":
+                        if (isMessageEvent(payload))
+                            store.applyMediaRejected(payload);
+                        return;
+
+                    default:
+                        return;
+                }
             }),
         [],
     );

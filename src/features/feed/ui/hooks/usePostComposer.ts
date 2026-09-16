@@ -6,6 +6,7 @@ import { newIdempotencyKey } from "@core/api/idempotency";
 import type { Post } from "../../data/feed.types";
 import { reportError } from "@shared/utils/report-error";
 import { useMediaSelection } from "@shared/hooks/useMediaSelection";
+import { useMentionLimit } from "@shared/hooks/useMentionLimit";
 
 /** The API's own cap on a post body. Mirrored so its 400 is unreachable. */
 export const POST_MAX_LENGTH = 300;
@@ -47,6 +48,13 @@ export function usePostComposer({
     const [error, setError] = useState<string | null>(null);
     const media = useMediaSelection();
 
+    /*
+     * The API counts the handles written, not the accounts they resolve to,
+     * and refuses a body naming more than ten. Mirrored here so the refusal is
+     * unreachable in ordinary use — as the character cap is.
+     */
+    const mentionLimit = useMentionLimit(content);
+
     /**
      * One key for one attempt at *this* post, held across retries.
      *
@@ -71,6 +79,7 @@ export function usePostComposer({
             media.assets.length > 0 ||
             Boolean(quotedPostId)) &&
         !isTooLong &&
+        !mentionLimit.isOverLimit &&
         !isSubmitting;
 
     const submit = useCallback(async () => {
@@ -125,6 +134,7 @@ export function usePostComposer({
         media,
         isSubmitting,
         isTooLong,
+        mentionLimit,
         canSubmit,
         submit,
         error,

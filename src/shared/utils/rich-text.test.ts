@@ -65,13 +65,132 @@ describe("splitRichText", () => {
         ]);
     });
 
-    it("leaves tags and handles as text", () => {
-        // Deliberate: a tag opens a filtered feed on the web and a mention
-        // opens a profile, and neither screen exists yet. Four blue words that
-        // answer a tap with nothing read as broken; plain text reads as text.
-        expect(splitRichText("#expo and @ada")).toEqual([
-            { kind: "text", value: "#expo and @ada", start: 0 },
+    it("leaves a tag as text", () => {
+        // Deliberate: a tag opens a feed filtered to it on the web and that
+        // screen does not exist yet. A blue word that answers a tap with
+        // nothing reads as broken; plain text reads as text.
+        expect(splitRichText("#expo ships")).toEqual([
+            { kind: "text", value: "#expo ships", start: 0 },
         ]);
+    });
+
+    describe("mentions", () => {
+        const mentions = [{ id: "u1", username: "ada" }];
+
+        it("leaves a handle as text when nothing resolved it", () => {
+            // The body arrives unchanged and the API says separately which
+            // handles name an account. Without that list there is nothing to
+            // pair, and a link drawn anyway eventually points somebody's name
+            // at a stranger.
+            expect(splitRichText("hi @ada")).toEqual([
+                { kind: "text", value: "hi @ada", start: 0 },
+            ]);
+        });
+
+        it("links a handle the API resolved", () => {
+            expect(splitRichText("hi @ada!", mentions)).toEqual([
+                { kind: "text", value: "hi ", start: 0 },
+                {
+                    kind: "mention",
+                    value: "ada",
+                    username: "ada",
+                    start: 3,
+                },
+                { kind: "text", value: "!", start: 7 },
+            ]);
+        });
+
+        it("matches case-insensitively and keeps the casing that was typed", () => {
+            // `@Ada` names the account `ada`; rewriting it to the stored
+            // spelling would edit what somebody wrote.
+            expect(splitRichText("@Ada", mentions)).toEqual([
+                {
+                    kind: "mention",
+                    value: "Ada",
+                    username: "ada",
+                    start: 0,
+                },
+            ]);
+        });
+
+        it("links to the current handle after a rename", () => {
+            // The relation is stored by id, so the API returns the account's
+            // handle *now*. The text stays as it was written and the tap goes
+            // where the account actually is.
+            expect(
+                splitRichText("@ada wrote it", [
+                    { id: "u1", username: "ada.lovelace" },
+                ]),
+            ).toEqual([{ kind: "text", value: "@ada wrote it", start: 0 }]);
+        });
+
+        it("gives the trailing dot back to the sentence", () => {
+            expect(splitRichText("ask @ada.", mentions)).toEqual([
+                { kind: "text", value: "ask ", start: 0 },
+                {
+                    kind: "mention",
+                    value: "ada",
+                    username: "ada",
+                    start: 4,
+                },
+                { kind: "text", value: ".", start: 8 },
+            ]);
+        });
+
+        it("does not fire inside an email address", () => {
+            // The character before the `@` is consumed to prove the handle
+            // starts a word, and it comes back as text — so the body is one
+            // run, exactly as if the branch had never matched.
+            expect(splitRichText("write to ada@ada.dev", mentions)).toEqual([
+                { kind: "text", value: "write to ada@ada.dev", start: 0 },
+            ]);
+        });
+
+        it("takes two handles in one body", () => {
+            expect(
+                splitRichText("@ada and @bob", [
+                    { id: "u1", username: "ada" },
+                    { id: "u2", username: "bob" },
+                ]),
+            ).toEqual([
+                {
+                    kind: "mention",
+                    value: "ada",
+                    username: "ada",
+                    start: 0,
+                },
+                { kind: "text", value: " and ", start: 4 },
+                {
+                    kind: "mention",
+                    value: "bob",
+                    username: "bob",
+                    start: 9,
+                },
+            ]);
+        });
+
+        it("takes a handle beside the other markup", () => {
+            expect(
+                splitRichText("**hi** @ada https://tdn.dev", mentions),
+            ).toEqual([
+                { kind: "bold", value: "hi", start: 0 },
+                { kind: "text", value: " ", start: 6 },
+                {
+                    kind: "mention",
+                    value: "ada",
+                    username: "ada",
+                    start: 7,
+                },
+                { kind: "text", value: " ", start: 11 },
+                { kind: "url", value: "https://tdn.dev", start: 12 },
+            ]);
+        });
+
+        it("leaves a handle too short to be a username alone", () => {
+            expect(splitRichText("@a", [{ id: "u1", username: "a" }])).toEqual([
+                { kind: "text", value: "@a", start: 0 },
+            ]);
+        });
     });
 
     it("handles an empty body", () => {

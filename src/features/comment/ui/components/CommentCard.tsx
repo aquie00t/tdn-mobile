@@ -162,6 +162,7 @@ function CommentCardView({
 
                     <RichText
                         text={comment.content}
+                        mentions={comment.mentions}
                         size={isHead ? "body" : "small"}
                     />
 

@@ -1,7 +1,7 @@
 import { HttpResponse, http } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { server } from "../../../../tests/msw-server";
+import { server } from "../../../tests/msw-server";
 
 const keystore = vi.hoisted(() => new Map<string, string>());
 

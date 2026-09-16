@@ -7,8 +7,11 @@ import type { Comment, CommentTarget } from "../../data/comment.types";
 import { commentApi } from "../../data/comment.api";
 import { getErrorMessage, isOurFailure } from "@shared/utils/error-handler";
 import { MediaPicker } from "@shared/ui/MediaPicker";
+import { MentionSuggestions } from "@shared/ui/MentionSuggestions";
 import { reportError } from "@shared/utils/report-error";
 import { useMediaSelection } from "@shared/hooks/useMediaSelection";
+import { useMentionAutocomplete } from "@shared/hooks/useMentionAutocomplete";
+import { useMentionLimit } from "@shared/hooks/useMentionLimit";
 import { newIdempotencyKey } from "@core/api/idempotency";
 import { AddMediaIcon, ProfileIcon, SendIcon } from "@shared/ui/icons/lucide";
 import { Spinner } from "@shared/ui/Spinner";
@@ -47,8 +50,7 @@ const COUNTER_THRESHOLD = COMMENT_MAX_LENGTH - 100;
  * once there is something to send. The first draft was a bordered input with a
  * button beside it, which is the shape of a sign-in screen.
  *
- * The web's composer also uploads media and completes `@handles`. Both are
- * their own PRs — uploads with the post composer in PR 11, mentions in PR 24.
+ * It uploads media and completes `@handles`, as the web's does.
  */
 export function CommentBox({
     target,
@@ -77,12 +79,15 @@ export function CommentBox({
     const idempotencyKey = useRef<string | null>(null);
 
     const media = useMediaSelection();
+    const mention = useMentionAutocomplete(content);
+    const mentionLimit = useMentionLimit(content);
 
     const trimmed = content.trim();
     const isTooLong = trimmed.length > COMMENT_MAX_LENGTH;
     const canSubmit =
         (trimmed.length > 0 || media.assets.length > 0) &&
         !isTooLong &&
+        !mentionLimit.isOverLimit &&
         !isSubmitting;
 
     const handleSubmit = async () => {
@@ -131,6 +136,29 @@ export function CommentBox({
                 isInline ? "py-1" : "border-t border-ink/10 bg-ground px-3 py-2"
             }
         >
+            {/*
+             * Above the field, not under it. This box is docked at the bottom
+             * of the thread with the keyboard beneath it, so a list under the
+             * field would open into the keyboard; the post composer, which has
+             * a whole screen, puts its list the other way round.
+             */}
+            {mention.isOpen && (
+                <View className="pb-2 pl-10">
+                    <MentionSuggestions
+                        isSearching={mention.isSearching}
+                        suggestions={mention.suggestions}
+                        onSelect={(item) => {
+                            const next = mention.select(item);
+                            if (next === null) return;
+                            setContent(next);
+                            // Choosing an account is typing, and typing
+                            // retracts the answer to the last attempt.
+                            setError(null);
+                        }}
+                    />
+                </View>
+            )}
+
             <View className="flex-row items-end gap-2">
                 {avatarUrl ? (
                     <Avatar uri={avatarUrl} size={32} className="mb-1" />
@@ -154,6 +182,11 @@ export function CommentBox({
                             // Typing retracts the answer to the last attempt.
                             setError(null);
                         }}
+                        onSelectionChange={mention.onSelectionChange}
+                        // Controlled for the one render after an insertion and
+                        // `undefined` otherwise, or the field fights the
+                        // person typing into it.
+                        selection={mention.selection}
                         placeholder={placeholder ?? t("commentBox.placeholder")}
                         multiline
                         // Grows with the text and then scrolls, so a long
@@ -245,6 +278,13 @@ export function CommentBox({
             {error && (
                 <Text size="caption" tone="danger" className="pl-10 pt-1">
                     {error}
+                </Text>
+            )}
+
+            {/* The send control is already refusing; this says why. */}
+            {mentionLimit.isOverLimit && (
+                <Text size="caption" tone="danger" className="pl-10 pt-1">
+                    {t("error.mentionLimit", { max: mentionLimit.max })}
                 </Text>
             )}
 

@@ -19,12 +19,12 @@ export const PROFILE_SEARCH_MIN_CHARS = 2;
 /**
  * Accounts by handle or name.
  *
- * Lives in this feature rather than in the profile feature, which is where the
- * web keeps it: the web searches profiles from a dropdown in its header, and a
- * phone has no header to put one in. Search on this app is the explore screen,
- * so the endpoint belongs to the screen that calls it — and nothing else does.
- * Two features needing it is what would move it to `shared/`, as the follow
- * pair moved.
+ * Shared rather than owned by a feature, which is the rule this codebase
+ * applies the moment a second caller appears. It began in the explore feature,
+ * where it is the account half of the search screen; mentions then needed the
+ * same endpoint to complete an `@handle`, and a feature may not import another
+ * feature. The web has no such pair — it searches profiles from a dropdown in
+ * its header, which a phone has nowhere to put.
  */
 export const profileSearchApi = {
     searchProfiles: (

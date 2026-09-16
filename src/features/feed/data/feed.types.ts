@@ -1,3 +1,5 @@
+import type { Mention } from "@shared/utils/mentions";
+
 export type PostType =
     "COMMUNITY" | "TECH_NEWS" | "SYSTEM_UPDATE" | "JOB_POSTING";
 
@@ -14,18 +16,6 @@ export interface PostAuthor {
 
 export interface PostTag {
     name: string;
-}
-
-/**
- * An account named in a post's body, resolved by the API.
- *
- * Lives here rather than in `shared/` because nothing else has needed it yet.
- * PR 24 brings the mention resolver — the thing that turns `@ada` in a body
- * into a link — and moves this beside it.
- */
-export interface Mention {
-    id: string;
-    username: string;
 }
 
 /**

@@ -1,5 +1,5 @@
-import { profileSearchApi } from "../../data/profile-search.api";
-import type { ProfileSearchItem } from "../../data/profile-search.types";
+import { profileSearchApi } from "@shared/data/profile-search.api";
+import type { ProfileSearchItem } from "@shared/data/profile-search.types";
 import type { SearchResults } from "./useSearchResults";
 import { SEARCH_MIN_CHARS } from "./useTagSearch";
 import { useSearchResults } from "./useSearchResults";

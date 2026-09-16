@@ -10,6 +10,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Avatar } from "@shared/ui/Avatar";
 import { Button } from "@shared/ui/Button";
 import { MediaPicker } from "@shared/ui/MediaPicker";
+import { MentionSuggestions } from "@shared/ui/MentionSuggestions";
 import { QuotedPostCard } from "../components/QuotedPostCard";
 import { ProfileIcon } from "@shared/ui/icons/lucide";
 import { Screen } from "@shared/ui/Screen";
@@ -17,6 +18,7 @@ import { ScreenHeader } from "@shared/layout/ScreenHeader";
 import { Text } from "@shared/ui/Text";
 import { POST_MAX_LENGTH, usePostComposer } from "../hooks/usePostComposer";
 import { useI18n } from "@shared/hooks/useI18n";
+import { useMentionAutocomplete } from "@shared/hooks/useMentionAutocomplete";
 import { usePost } from "../hooks/usePost";
 import { usePostInboxStore } from "../store/post-inbox.store";
 import { useQuoteDraftStore } from "../store/quote-draft.store";
@@ -86,6 +88,8 @@ export function ComposeScreen() {
         },
     });
 
+    const mention = useMentionAutocomplete(composer.content);
+
     const label = composer.media.isUploading
         ? t("postBox.uploading")
         : composer.isSubmitting
@@ -133,6 +137,11 @@ export function ComposeScreen() {
                         <TextInput
                             value={composer.content}
                             onChangeText={composer.setContent}
+                            onSelectionChange={mention.onSelectionChange}
+                            // Controlled for the one render that follows an
+                            // insertion and `undefined` otherwise, or the
+                            // field fights the person typing into it.
+                            selection={mention.selection}
                             placeholder={
                                 composer.isQuote
                                     ? t("quote.placeholder")
@@ -148,6 +157,24 @@ export function ComposeScreen() {
                             textAlignVertical="top"
                         />
                     </View>
+
+                    {/*
+                     * Under the field rather than at the caret, which cannot
+                     * be measured here — see `useMentionAutocomplete`. This
+                     * screen has the room above the keyboard that the docked
+                     * comment box does not, so the list goes where the eye
+                     * already is rather than over the text being written.
+                     */}
+                    {mention.isOpen && (
+                        <MentionSuggestions
+                            isSearching={mention.isSearching}
+                            suggestions={mention.suggestions}
+                            onSelect={(item) => {
+                                const next = mention.select(item);
+                                if (next !== null) composer.setContent(next);
+                            }}
+                        />
+                    )}
 
                     {/*
                      * Rendered from the full post the screen fetched: a `Post`
@@ -171,6 +198,19 @@ export function ComposeScreen() {
                             max={composer.media.max}
                             disabled={composer.isSubmitting}
                         />
+                    )}
+
+                    {/*
+                     * Shown rather than enforced by truncation: the post
+                     * button is already refusing, and a sentence is the only
+                     * thing that says why.
+                     */}
+                    {composer.mentionLimit.isOverLimit && (
+                        <Text size="small" tone="danger">
+                            {t("error.mentionLimit", {
+                                max: composer.mentionLimit.max,
+                            })}
+                        </Text>
                     )}
 
                     {composer.content.trim().length > COUNTER_THRESHOLD && (

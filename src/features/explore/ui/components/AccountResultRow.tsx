@@ -2,7 +2,7 @@ import { Pressable, View } from "react-native";
 import { memo } from "react";
 
 import { Avatar } from "@shared/ui/Avatar";
-import type { ProfileSearchItem } from "../../data/profile-search.types";
+import type { ProfileSearchItem } from "@shared/data/profile-search.types";
 import { ProfileIcon } from "@shared/ui/icons/lucide";
 import { Text } from "@shared/ui/Text";
 

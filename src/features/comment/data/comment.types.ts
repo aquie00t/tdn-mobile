@@ -1,3 +1,5 @@
+import type { Mention } from "@shared/utils/mentions";
+
 export interface CommentAuthor {
     id: string;
     username: string;
@@ -5,19 +7,6 @@ export interface CommentAuthor {
     /** NOT NULL server-side — the mapper substitutes a CDN default. */
     avatarUrl: string;
     isMe?: boolean;
-}
-
-/**
- * An account named in a comment's body, resolved by the API.
- *
- * Declared again here rather than reached for across features: a feature may
- * not import another feature, and `Mention` currently lives in the feed's
- * types. PR 24 brings the mention renderer and moves one copy to `shared/`,
- * which is the point at which having two stops being right.
- */
-export interface Mention {
-    id: string;
-    username: string;
 }
 
 export interface Comment {

@@ -81,8 +81,8 @@ function formatPostDate(iso: string, locale: string): string {
  * button that answers a tap with nothing reads as broken where a number reads
  * as a number.
  *
- * `mentions` therefore flows through as ordinary text. PR 24 brings the
- * renderer that turns `@ada` into something you can press.
+ * The body goes through `RichText` with the post's `mentions`, so a handle the
+ * API resolved is a link to that profile and one it did not stays text.
  */
 function PostCardView({
     onUpdated,
@@ -231,7 +231,12 @@ function PostCardView({
                         </Text>
                     </View>
                 ) : (
-                    post.content.length > 0 && <RichText text={post.content} />
+                    post.content.length > 0 && (
+                        <RichText
+                            text={post.content}
+                            mentions={post.mentions}
+                        />
+                    )
                 )}
 
                 {/*

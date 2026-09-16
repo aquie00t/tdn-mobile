@@ -1,5 +1,6 @@
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import { memo } from "react";
+import { useRouter } from "expo-router";
 
 import { Avatar } from "@shared/ui/Avatar";
 import type { Conversation } from "../../data/message.types";
@@ -35,13 +36,12 @@ function formatWhen(iso: string, locale: string): string {
  * here would disagree with the copy realtime writes into the same field, and
  * the row would change wording every time it was refetched.
  *
- * **Not pressable yet.** The thread it would open is the next pull request,
- * and a row that answers a tap with nothing reads as broken where a row that
- * does not answer reads as a list — the same call the feed made about its
- * comment count before there was a post screen to open.
+ * Opens the thread, which is what the row was waiting for — the previous
+ * version deliberately answered nothing, because the screen did not exist yet.
  */
 function ConversationRowView({ conversation }: ConversationRowProps) {
     const { t, locale } = useI18n();
+    const router = useRouter();
     const { participant, unreadCount, lastMessagePreview, lastMessageAt } =
         conversation;
 
@@ -49,7 +49,17 @@ function ConversationRowView({ conversation }: ConversationRowProps) {
     const badge = formatBadgeCount(unreadCount);
 
     return (
-        <View className="flex-row items-center gap-3 border-b border-ink/10 px-4 py-3">
+        <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={participant.username}
+            onPress={() =>
+                router.push({
+                    pathname: "/messages/[id]",
+                    params: { id: conversation.id },
+                })
+            }
+            className="flex-row items-center gap-3 border-b border-ink/10 px-4 py-3 active:bg-ink/5"
+        >
             {/*
              * Truthiness, not `.length`. The field is NOT NULL server-side and
              * typed as a string, but this branch exists because a missing
@@ -107,7 +117,7 @@ function ConversationRowView({ conversation }: ConversationRowProps) {
                     </Text>
                 </View>
             )}
-        </View>
+        </Pressable>
     );
 }
 

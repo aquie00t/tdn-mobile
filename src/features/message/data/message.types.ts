@@ -65,3 +65,39 @@ export interface IncomingMessagePayload {
     hasMedia: boolean;
     createdAt: string;
 }
+
+export interface Message {
+    id: string;
+    conversationId: string;
+    senderId: string;
+    /** Empty on a withdrawn message. */
+    content: string;
+    /** Absolute URLs. Empty while `mediaPending`, and after `mediaRejected`. */
+    mediaUrls: string[];
+    /** Borderline content: blur it behind a tap rather than hiding it. */
+    isSensitive: boolean;
+    /** A video is stored but not yet cleared. The text is served normally. */
+    mediaPending: boolean;
+    /** Moderation refused the attachments; the files are gone, the text stays. */
+    mediaRejected: boolean;
+    /**
+     * The sender withdrew it. The row is a tombstone and keeps its place — the
+     * other participant may have replied to it, and removing it would leave
+     * that reply talking to nothing.
+     */
+    isDeleted: boolean;
+    isMine: boolean;
+    createdAt: string;
+}
+
+/**
+ * The first page of a thread carries the conversation itself, so opening one
+ * is a single request rather than a listing plus a lookup.
+ */
+export interface ThreadPage {
+    conversation: Conversation;
+    messages: Message[];
+}
+
+/** Server-enforced. Mirrored so the composer never sends a doomed body. */
+export const MESSAGE_MAX_LENGTH = 4000;

@@ -19,7 +19,7 @@ vi.mock("expo-secure-store", () => ({
 
 import { BASE_URL } from "@core/api/client";
 import { clearTokens, setTokens } from "@core/session/tokens";
-import type { Conversation } from "./message.types";
+import type { Conversation, Message } from "./message.types";
 import { messageApi } from "./message.api";
 
 const BASE = BASE_URL;
@@ -39,6 +39,21 @@ const conversation = (over: Partial<Conversation> = {}): Conversation => ({
     lastMessageAt: "2026-09-10T12:00:00.000Z",
     otherLastReadAt: null,
     createdAt: "2026-09-01T09:00:00.000Z",
+    ...over,
+});
+
+const message = (over: Partial<Message> = {}): Message => ({
+    id: "m1",
+    conversationId: "c1",
+    senderId: "u1",
+    content: "hello",
+    mediaUrls: [],
+    isSensitive: false,
+    mediaPending: false,
+    mediaRejected: false,
+    isDeleted: false,
+    isMine: true,
+    createdAt: "2026-09-10T12:00:00.000Z",
     ...over,
 });
 
@@ -207,5 +222,177 @@ describe("accept and decline", () => {
         await expect(messageApi.acceptConversation("c1")).rejects.toMatchObject(
             { title: "MessageNotSendableError", status: 403 },
         );
+    });
+});
+
+describe("getThread", () => {
+    it("carries the conversation on the first page, so opening one costs a request", async () => {
+        server.use(
+            http.get(`${BASE}/conversations/c1/messages`, () =>
+                page(
+                    {
+                        conversation: conversation(),
+                        messages: [message()],
+                    },
+                    "older",
+                ),
+            ),
+        );
+
+        const result = await messageApi.getThread("c1");
+
+        expect(result.data.conversation.id).toBe("c1");
+        expect(result.data.messages).toHaveLength(1);
+        expect(result.meta?.nextCursor).toBe("older");
+    });
+
+    it("asks for the thread default and pages backwards with the cursor", async () => {
+        let url = "";
+        server.use(
+            http.get(`${BASE}/conversations/c1/messages`, ({ request }) => {
+                url = request.url;
+                return page({ conversation: conversation(), messages: [] });
+            }),
+        );
+
+        await messageApi.getThread("c1", { cursor: "older" });
+
+        expect(url).toContain("limit=30");
+        expect(url).toContain("cursor=older");
+    });
+
+    it("throws the 404 a thread the caller is not in answers with", async () => {
+        // 404 rather than 403, so membership cannot be probed — and a thread
+        // hidden by a block answers the same way, for the same reason.
+        server.use(
+            http.get(`${BASE}/conversations/c1/messages`, () =>
+                HttpResponse.json(
+                    {
+                        type: "about:blank",
+                        title: "ConversationNotFoundError",
+                        status: 404,
+                        detail: "Conversation not found.",
+                        instance: "/api/v1/conversations/c1/messages",
+                    },
+                    { status: 404 },
+                ),
+            ),
+        );
+
+        await expect(messageApi.getThread("c1")).rejects.toMatchObject({
+            status: 404,
+        });
+    });
+});
+
+describe("sendMessage", () => {
+    it("sends the caller's idempotency key", async () => {
+        // The whole reason the key is the caller's: a person tapping send
+        // again after a timeout must be answered from the first attempt.
+        let key: string | null = null;
+        server.use(
+            http.post(`${BASE}/conversations/c1/messages`, ({ request }) => {
+                key = request.headers.get("Idempotency-Key");
+                return ok(message());
+            }),
+        );
+
+        await messageApi.sendMessage("c1", "hello", "key-1");
+
+        expect(key).toBe("key-1");
+    });
+
+    it("returns the server's copy of the message", async () => {
+        server.use(
+            http.post(`${BASE}/conversations/c1/messages`, () =>
+                ok(message({ id: "m9" })),
+            ),
+        );
+
+        await expect(
+            messageApi.sendMessage("c1", "hello", "key-1"),
+        ).resolves.toMatchObject({ id: "m9" });
+    });
+
+    it("throws the refusal a thread that cannot be written to answers with", async () => {
+        server.use(
+            http.post(`${BASE}/conversations/c1/messages`, () =>
+                HttpResponse.json(
+                    {
+                        type: "about:blank",
+                        title: "MessageNotSendableError",
+                        status: 403,
+                        detail: "You cannot send messages in this conversation.",
+                        instance: "/api/v1/conversations/c1/messages",
+                    },
+                    { status: 403 },
+                ),
+            ),
+        );
+
+        await expect(
+            messageApi.sendMessage("c1", "hello", "key-1"),
+        ).rejects.toMatchObject({ title: "MessageNotSendableError" });
+    });
+});
+
+describe("markRead and deleteMessage", () => {
+    it("takes the 204 both answer with", async () => {
+        // `apiClient` turns an empty body into `{}` rather than letting it
+        // escape as a `SyntaxError`.
+        server.use(
+            http.patch(
+                `${BASE}/conversations/c1/read`,
+                () => new HttpResponse(null, { status: 204 }),
+            ),
+            http.delete(
+                `${BASE}/messages/m1`,
+                () => new HttpResponse(null, { status: 204 }),
+            ),
+        );
+
+        await expect(messageApi.markRead("c1")).resolves.toBeDefined();
+        await expect(messageApi.deleteMessage("m1")).resolves.toBeDefined();
+    });
+});
+
+describe("openConversation", () => {
+    it("returns the thread for the pair, whether it is new or not", async () => {
+        // Idempotent: the same two accounts always resolve to the same
+        // thread, so this is "open" rather than "create".
+        server.use(
+            http.post(`${BASE}/conversations`, () =>
+                ok(conversation({ status: "PENDING", isRequest: false })),
+            ),
+        );
+
+        const result = await messageApi.openConversation("u2");
+
+        expect(result.id).toBe("c1");
+        expect(result.status).toBe("PENDING");
+    });
+
+    it("throws the one error four different refusals share", async () => {
+        // Yourself, a bot, an account pending deletion, or a block in either
+        // direction. The server writes which; nothing on the client improves
+        // on that.
+        server.use(
+            http.post(`${BASE}/conversations`, () =>
+                HttpResponse.json(
+                    {
+                        type: "about:blank",
+                        title: "InvalidRecipientError",
+                        status: 400,
+                        detail: "You cannot message this account.",
+                        instance: "/api/v1/conversations",
+                    },
+                    { status: 400 },
+                ),
+            ),
+        );
+
+        await expect(messageApi.openConversation("u2")).rejects.toMatchObject({
+            title: "InvalidRecipientError",
+        });
     });
 });

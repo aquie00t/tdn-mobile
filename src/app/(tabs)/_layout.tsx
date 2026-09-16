@@ -99,7 +99,13 @@ export default function TabsLayout() {
                         />
                     </TabTrigger>
 
-                    <TabTrigger name="messages" href="/messages" asChild>
+                    {/*
+                     * A group as well, now that a thread has a screen: the
+                     * trigger names the group and the href still names the
+                     * inbox inside it, so a conversation opens with the bar
+                     * still on screen.
+                     */}
+                    <TabTrigger name="(messages)" href="/messages" asChild>
                         <TabBarButton
                             icon={MessagesIcon}
                             label="nav.msgs"

@@ -3,6 +3,7 @@ import { create } from "zustand";
 import type {
     Conversation,
     IncomingMessagePayload,
+    Message,
 } from "../../data/message.types";
 
 export interface MessageState {
@@ -36,6 +37,21 @@ export interface MessageState {
     unreadCount: number;
 
     /**
+     * The thread the reader is looking at **right now** — not merely one that
+     * is mounted.
+     *
+     * A message arriving into a thread somebody is reading is read on arrival,
+     * so it must not raise the badge they are about to clear; the same message
+     * arriving in a thread left open behind a backgrounded app has been read
+     * by nobody and must.
+     */
+    focusedConversationId: string | null;
+    activeConversation: Conversation | null;
+    /** Newest first, as the API returns them. */
+    messages: Message[];
+    messagesCursor: string | null;
+
+    /**
      * Bumped when realtime learned something the store cannot represent on its
      * own, and a mounted list should re-read from the server.
      *
@@ -48,6 +64,7 @@ export interface MessageState {
      */
     conversationsRevision: number;
     requestsRevision: number;
+    threadRevision: number;
 
     setConversations: (
         list: Conversation[],
@@ -63,8 +80,39 @@ export interface MessageState {
     upsertConversation: (conversation: Conversation) => void;
     applyIncoming: (payload: IncomingMessagePayload) => void;
     applyRequest: (payload: IncomingMessagePayload) => void;
+
+    setFocusedConversation: (id: string | null) => void;
+    setThread: (
+        conversation: Conversation,
+        messages: Message[],
+        cursor: string | null,
+        append?: boolean,
+    ) => void;
+    clearThread: () => void;
+    addMessage: (message: Message) => void;
+    replaceMessage: (tempId: string, message: Message) => void;
+    removeMessage: (id: string) => void;
+    markMessageDeleted: (id: string) => void;
+    markConversationRead: (id: string) => void;
+
     reset: () => void;
 }
+
+function patchMessage(
+    messages: Message[],
+    id: string,
+    patch: Partial<Message>,
+): Message[] {
+    return messages.map((m) => (m.id === id ? { ...m, ...patch } : m));
+}
+
+/** What a withdrawal leaves behind: the row, and nothing in it. */
+const TOMBSTONE: Partial<Message> = {
+    isDeleted: true,
+    content: "",
+    mediaUrls: [],
+    mediaPending: false,
+};
 
 /**
  * How many rows of a `PENDING` listing are the reader's to answer.
@@ -85,6 +133,7 @@ const countRequests = (rows: Conversation[]): number =>
 function bumpRow(
     rows: Conversation[],
     payload: IncomingMessagePayload,
+    countsAsUnread = true,
 ): { rows: Conversation[]; found: boolean } {
     const index = rows.findIndex((c) => c.id === payload.conversationId);
     if (index === -1) return { rows, found: false };
@@ -94,7 +143,7 @@ function bumpRow(
         ...row,
         lastMessagePreview: payload.preview,
         lastMessageAt: payload.createdAt,
-        unreadCount: row.unreadCount + 1,
+        unreadCount: countsAsUnread ? row.unreadCount + 1 : row.unreadCount,
     };
 
     return {
@@ -104,18 +153,12 @@ function bumpRow(
 }
 
 /**
- * The inbox: two listings, two counts, and what realtime does to them.
+ * Messaging: two listings, two counts, one open thread, and what realtime does
+ * to all of them.
  *
- * The thread is not here. It arrives with the thread screen, and with it the
- * one piece of state this version deliberately has no use for: the web keeps a
- * `focusedConversationId` so a message arriving in the thread somebody is
- * reading does not raise a badge they are about to clear. Nothing can be
- * focused while there is no thread screen, so the field would be a `null` that
- * every branch tests and nothing ever sets.
- *
- * Not persisted. Both counts describe a server-side fact, and a badge restored
+ * Not persisted. The counts describe a server-side fact, and a badge restored
  * from disk would be reporting a number from a session that has since been
- * read.
+ * read; the thread is a screen's worth of state and is re-read when it opens.
  */
 export const useMessageStore = create<MessageState>((set) => ({
     conversations: [],
@@ -126,6 +169,11 @@ export const useMessageStore = create<MessageState>((set) => ({
     unreadCount: 0,
     conversationsRevision: 0,
     requestsRevision: 0,
+    threadRevision: 0,
+    focusedConversationId: null,
+    activeConversation: null,
+    messages: [],
+    messagesCursor: null,
 
     setConversations: (list, cursor, append = false) =>
         set((state) => ({
@@ -158,6 +206,12 @@ export const useMessageStore = create<MessageState>((set) => ({
      * as join the inbox, or it shows in both until the next fetch. A
      * `DECLINED` one leaves both lists: it is terminal and is never listed
      * again.
+     *
+     * **And the open thread is patched too**, when it is this one. Everything
+     * the thread screen draws — the request banner, the composer, the closed
+     * notice — is read off `activeConversation`, so leaving it behind would
+     * mean accepting a request and still being offered the decision, with no
+     * composer, until the screen was left and opened again.
      */
     upsertConversation: (conversation) =>
         set((state) => {
@@ -178,16 +232,40 @@ export const useMessageStore = create<MessageState>((set) => ({
                 requestCount: countRequests(
                     isPending ? [conversation, ...requests] : requests,
                 ),
+                activeConversation:
+                    state.activeConversation?.id === conversation.id
+                        ? conversation
+                        : state.activeConversation,
             };
         }),
 
     applyIncoming: (payload) =>
         set((state) => {
-            const { rows, found } = bumpRow(state.conversations, payload);
+            const isFocused =
+                state.focusedConversationId === payload.conversationId;
+            const { rows, found } = bumpRow(
+                state.conversations,
+                payload,
+                !isFocused,
+            );
 
             return {
                 conversations: rows,
-                unreadCount: state.unreadCount + 1,
+                /*
+                 * A thread the reader is looking at is read as it arrives, so
+                 * raising the badge for it would leave a number they can only
+                 * clear by navigating away and coming back.
+                 */
+                unreadCount: isFocused
+                    ? state.unreadCount
+                    : state.unreadCount + 1,
+                /*
+                 * The bubble cannot be built from a preview, so the open
+                 * thread re-reads its newest page instead.
+                 */
+                threadRevision: isFocused
+                    ? state.threadRevision + 1
+                    : state.threadRevision,
                 // A message for a thread that is not in the loaded page leaves
                 // nothing to reorder, so the list re-reads rather than growing
                 // a row out of a payload that is not one.
@@ -221,10 +299,94 @@ export const useMessageStore = create<MessageState>((set) => ({
             };
         }),
 
+    setFocusedConversation: (id) => set({ focusedConversationId: id }),
+
+    setThread: (conversation, messages, cursor, append = false) =>
+        set((state) => ({
+            activeConversation: conversation,
+            // Older pages arrive after the newest ones and the array runs
+            // newest first, so an appended page belongs at the end.
+            messages: append ? [...state.messages, ...messages] : messages,
+            messagesCursor: cursor,
+        })),
+
+    clearThread: () =>
+        set({
+            activeConversation: null,
+            messages: [],
+            messagesCursor: null,
+            focusedConversationId: null,
+        }),
+
+    addMessage: (message) =>
+        set((state) => ({ messages: [message, ...state.messages] })),
+
     /**
-     * Sign-out. Both counts and both listings describe one account, and
-     * without this the next person to sign in on the device opens the inbox on
-     * the previous one's rows.
+     * Swaps an optimistic bubble for the server's copy.
+     *
+     * The fallbacks are the interesting part. A thread re-reads its newest
+     * page whenever realtime says it is behind, and that replaces `messages`
+     * wholesale — so a send that was in flight at that moment comes back to
+     * find its `temp-` row gone. Dropping the answer there would hide a
+     * message that *was* sent until the screen was reopened, and the obvious
+     * response to a message that never appeared is to send it again.
+     *
+     * So: swap it where the placeholder still is, ignore it where the refetch
+     * already brought it back, and otherwise put it at the front, which for a
+     * newest-first array is where a message just sent belongs.
+     */
+    replaceMessage: (tempId, message) =>
+        set((state) => {
+            if (state.messages.some((m) => m.id === tempId)) {
+                return {
+                    messages: state.messages.map((m) =>
+                        m.id === tempId ? message : m,
+                    ),
+                };
+            }
+
+            if (state.messages.some((m) => m.id === message.id)) return {};
+
+            return { messages: [message, ...state.messages] };
+        }),
+
+    removeMessage: (id) =>
+        set((state) => ({
+            messages: state.messages.filter((m) => m.id !== id),
+        })),
+
+    /**
+     * A withdrawal empties the row without removing it. Dropping it outright
+     * would close a gap the other participant may have replied into, leaving
+     * their reply answering nothing.
+     */
+    markMessageDeleted: (id) =>
+        set((state) => ({
+            messages: patchMessage(state.messages, id, TOMBSTONE),
+        })),
+
+    /**
+     * Zeroes the row for immediate feedback. The global count is deliberately
+     * **not** adjusted here — the caller re-reads it from the server, because
+     * a thread that was never in a loaded page has no `unreadCount` to
+     * subtract and guessing one leaves the badge permanently wrong in a
+     * direction nothing corrects.
+     */
+    markConversationRead: (id) =>
+        set((state) => ({
+            conversations: state.conversations.map((c) =>
+                c.id === id ? { ...c, unreadCount: 0 } : c,
+            ),
+            activeConversation:
+                state.activeConversation?.id === id
+                    ? { ...state.activeConversation, unreadCount: 0 }
+                    : state.activeConversation,
+        })),
+
+    /**
+     * Sign-out. Every listing, count and open thread describes one account,
+     * and without this the next person to sign in on the device opens the
+     * inbox on the previous one's rows.
      */
     reset: () =>
         set({
@@ -234,5 +396,9 @@ export const useMessageStore = create<MessageState>((set) => ({
             requestsCursor: null,
             requestCount: 0,
             unreadCount: 0,
+            activeConversation: null,
+            messages: [],
+            messagesCursor: null,
+            focusedConversationId: null,
         }),
 }));

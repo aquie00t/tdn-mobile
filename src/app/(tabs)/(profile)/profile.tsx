@@ -1,13 +1,16 @@
 import { FlatList, Pressable, View } from "react-native";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { BlockedNotice } from "@features/profile/ui/components/BlockedNotice";
 import { EmptyState } from "@shared/ui/EmptyState";
 import { ErrorState } from "@shared/ui/ErrorState";
 import type { Post } from "@features/feed/data/feed.types";
 import { PostCard } from "@features/feed/ui/components/PostCard";
+import { ProfileArticles } from "@features/article/ui/components/ProfileArticles";
 import { ProfileHeader } from "@features/profile/ui/components/ProfileHeader";
+import { ProfileTabs } from "@features/profile/ui/components/ProfileTabs";
+import type { ProfileTab } from "@features/profile/ui/components/ProfileTabs";
 import { Screen } from "@shared/ui/Screen";
 import { ScreenHeader } from "@shared/layout/ScreenHeader";
 import { BookmarkIcon, SettingsIcon } from "@shared/ui/icons/lucide";
@@ -35,6 +38,7 @@ export default function ProfileTab() {
     const { profile, isLoading, error, fetchProfile, retry, patch } =
         useProfile(username);
     const posts = useUserPosts(username);
+    const [tab, setTab] = useState<ProfileTab>("posts");
 
     // The screens drive their own reads, as they do on the feed and the
     // thread. Both hooks re-key on `username`, so moving to another account
@@ -111,7 +115,24 @@ export default function ProfileTab() {
                 />
             )}
 
-            {profile && !error && (
+            {profile && !error && tab === "articles" && !hasBlockRelation && (
+                /*
+                 * Your own articles, drafts included — the one place a draft
+                 * is found again once its editor has been closed.
+                 */
+                <ProfileArticles
+                    username={profile.username}
+                    isMe
+                    header={
+                        <>
+                            <ProfileHeader profile={profile} onPatch={patch} />
+                            <ProfileTabs tab={tab} onChange={setTab} />
+                        </>
+                    }
+                />
+            )}
+
+            {profile && !error && (tab === "posts" || hasBlockRelation) && (
                 <FlatList
                     data={hasBlockRelation ? [] : posts.posts}
                     keyExtractor={keyOf}
@@ -127,11 +148,13 @@ export default function ProfileTab() {
                         <>
                             <ProfileHeader profile={profile} onPatch={patch} />
 
-                            {hasBlockRelation && (
+                            {hasBlockRelation ? (
                                 <BlockedNotice
                                     username={profile.username}
                                     isBlockedByMe={isBlocked}
                                 />
+                            ) : (
+                                <ProfileTabs tab={tab} onChange={setTab} />
                             )}
 
                             {posts.isLoading && (

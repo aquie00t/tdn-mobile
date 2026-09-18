@@ -527,6 +527,7 @@ export function useArticleEditor(initial: Article | null) {
         try {
             await articleApi.deleteArticle(id);
             isClosedRef.current = true;
+            bumpRevision(id);
             return true;
         } catch (err) {
             fail("article.delete", err);
@@ -534,7 +535,7 @@ export function useArticleEditor(initial: Article | null) {
         } finally {
             setIsBusy(false);
         }
-    }, [fail]);
+    }, [bumpRevision, fail]);
 
     return {
         draft,

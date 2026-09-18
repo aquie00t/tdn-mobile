@@ -36,7 +36,12 @@ export interface ArticleSummary {
     id: string;
     slug: string;
     title: string;
-    excerpt: string;
+    /**
+     * `null` when none was written and none could be taken from the body — a
+     * body that is only a code block, say. Drafts are where that happens
+     * most, and a draft is exactly what the author's own list shows.
+     */
+    excerpt: string | null;
     coverImageUrl: string | null;
     coverImageAlt: string | null;
     /**
@@ -63,6 +68,14 @@ export interface ArticleSummary {
 /** What `GET /articles/:slug` returns — a summary plus the raw markdown. */
 export interface Article extends ArticleSummary {
     body: string;
+}
+
+export interface GetMyArticlesParams {
+    page?: number;
+    /** The endpoint caps this at 50. */
+    limit?: number;
+    /** All three together when absent. */
+    status?: ArticleStatus;
 }
 
 export interface GetArticlesParams {

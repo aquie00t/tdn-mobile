@@ -1,5 +1,5 @@
 import { FlatList, View } from "react-native";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 
 import { BlockedNotice } from "@features/profile/ui/components/BlockedNotice";
@@ -10,7 +10,10 @@ import { followTargetId } from "@features/profile/domain/follow-target";
 import { MessageButton } from "@features/message/ui/components/MessageButton";
 import type { Post } from "@features/feed/data/feed.types";
 import { PostCard } from "@features/feed/ui/components/PostCard";
+import { ProfileArticles } from "@features/article/ui/components/ProfileArticles";
 import { ProfileHeader } from "@features/profile/ui/components/ProfileHeader";
+import { ProfileTabs } from "@features/profile/ui/components/ProfileTabs";
+import type { ProfileTab } from "@features/profile/ui/components/ProfileTabs";
 import { Screen } from "@shared/ui/Screen";
 import { ScreenHeader } from "@shared/layout/ScreenHeader";
 import { Spinner } from "@shared/ui/Spinner";
@@ -25,8 +28,9 @@ const keyOf = (post: Post) => post.id;
  *
  * **Composed in the route**, like the post detail screen and for the same
  * reason. The header is the profile feature's, the list is the feed's and the
- * button that opens a conversation is messaging's — a feature may not import
- * another, and a route may import all three. The list owns
+ * button that opens a conversation is messaging's, and the Articles tab is the
+ * article feature's — a feature may not import another, and a route may import
+ * all of them. The list owns
  * the scrolling and takes the header as its own, so the whole screen moves
  * together rather than as two scrollers fighting for the gesture.
  */
@@ -37,6 +41,7 @@ export default function ProfileRoute() {
     const { profile, isLoading, error, fetchProfile, retry, patch } =
         useProfile(username);
     const posts = useUserPosts(username);
+    const [tab, setTab] = useState<ProfileTab>("posts");
 
     // The screens drive their own reads, as they do on the feed and the
     // thread. Both hooks re-key on `username`, so moving to another account
@@ -94,7 +99,36 @@ export default function ProfileRoute() {
                 />
             )}
 
-            {profile && !error && (
+            {profile && !error && tab === "articles" && !hasBlockRelation && (
+                /*
+                 * Its own list rather than rows in this one: articles are
+                 * another resource with their own paging, and the header goes
+                 * with them so the whole screen still scrolls as one.
+                 */
+                <ProfileArticles
+                    username={profile.username}
+                    isMe={profile.isMe === true}
+                    header={
+                        <>
+                            <ProfileHeader
+                                profile={profile}
+                                onPatch={patch}
+                                onBlockChange={handleBlockChange}
+                                action={
+                                    recipientId ? (
+                                        <MessageButton
+                                            recipientId={recipientId}
+                                        />
+                                    ) : undefined
+                                }
+                            />
+                            <ProfileTabs tab={tab} onChange={setTab} />
+                        </>
+                    }
+                />
+            )}
+
+            {profile && !error && (tab === "posts" || hasBlockRelation) && (
                 <FlatList
                     data={hasBlockRelation ? [] : posts.posts}
                     keyExtractor={keyOf}
@@ -127,11 +161,17 @@ export default function ProfileRoute() {
                                 }
                             />
 
-                            {hasBlockRelation && (
+                            {/*
+                             * No tabs under a block: the notice replaces
+                             * everything this account wrote, articles too.
+                             */}
+                            {hasBlockRelation ? (
                                 <BlockedNotice
                                     username={profile.username}
                                     isBlockedByMe={isBlocked}
                                 />
+                            ) : (
+                                <ProfileTabs tab={tab} onChange={setTab} />
                             )}
 
                             {!hasBlockRelation && posts.isLoading && (

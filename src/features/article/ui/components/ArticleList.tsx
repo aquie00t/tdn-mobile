@@ -1,8 +1,10 @@
 import { FlatList, Pressable, View } from "react-native";
 import { useCallback } from "react";
+import type { ReactElement } from "react";
 import { useRouter } from "expo-router";
 
 import { ArticleCard } from "./ArticleCard";
+import type { ArticleQuery } from "../hooks/useArticles";
 import type { ArticleSummary } from "../../data/article.types";
 import { Button } from "@shared/ui/Button";
 import { CreateIcon } from "@shared/ui/icons/lucide";
@@ -16,15 +18,37 @@ import { useI18n } from "@shared/hooks/useI18n";
 
 const keyOf = (article: ArticleSummary) => article.id;
 
+export interface ArticleListProps {
+    /** Which articles; everything published when absent. */
+    query?: ArticleQuery;
+    /**
+     * Drawn above the rows and scrolled with them — a profile's header, which
+     * has to move with its articles rather than sit over them as a second
+     * scroller. With one, loading and failure are drawn *under* it rather
+     * than in its place, so the profile does not blink out while a page loads.
+     */
+    header?: ReactElement;
+    /** Whether the write button floats over the list. */
+    showWrite?: boolean;
+    /** What an empty list says. The feed's own words when absent. */
+    emptyTitle?: string;
+    emptyHint?: string;
+}
+
 /**
- * Everything published, newest first.
+ * A list of articles, newest first.
  *
- * A component rather than a screen, because it is drawn *inside* the feed —
- * the web keeps articles as the fourth tab of its strip, and the tab bar here
- * has no room for a sixth entry. The route hands this to `FeedScreen` as a
- * node, which is what keeps the feed from importing this feature.
+ * A component rather than a screen, because it is drawn *inside* others — the
+ * feed's Articles tab, and a profile's. The routes hand it over as a node,
+ * which is what keeps the feed and the profile from importing this feature.
  */
-export function ArticleList() {
+export function ArticleList({
+    query,
+    header,
+    showWrite = true,
+    emptyTitle,
+    emptyHint,
+}: ArticleListProps) {
     const { t } = useI18n();
     const router = useRouter();
     const {
@@ -36,7 +60,7 @@ export function ArticleList() {
         hasMore,
         retry,
         loadMore,
-    } = useArticles();
+    } = useArticles(query);
 
     // No copy is handed back: what the reader changes lives in the overlay,
     // which the card reads for itself. See `article-overlay.store`.
@@ -54,7 +78,7 @@ export function ArticleList() {
      * the article editor here rather than the post composer: articles have no
      * inline box on the web either, only a way in to a page of their own.
      */
-    const write = (
+    const write = showWrite ? (
         <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("editor.writeArticle")}
@@ -64,32 +88,38 @@ export function ArticleList() {
         >
             <CreateIcon size={26} className="text-ground" />
         </Pressable>
-    );
-
-    if (isLoading) return <Spinner center />;
+    ) : null;
 
     /*
-     * The error state replaces the list only while it is empty. A page that
+     * The error state replaces the rows only while there are none. A page that
      * failed under rows that are already up belongs beneath them: a second
      * page that never arrived must not take the first one with it.
      */
-    if (error && articles.length === 0) {
-        return (
-            <View className="flex-1">
-                <ErrorState
-                    message={error}
-                    onRetry={() => void retry()}
-                    retryLabel={t("postList.tryAgain")}
-                />
-                {write}
-            </View>
-        );
+    const failed = error !== null && articles.length === 0;
+    const failure = failed ? (
+        <ErrorState
+            message={error}
+            onRetry={() => void retry()}
+            retryLabel={t("postList.tryAgain")}
+        />
+    ) : null;
+
+    if (!header) {
+        if (isLoading) return <Spinner center />;
+        if (failed) {
+            return (
+                <View className="flex-1">
+                    {failure}
+                    {write}
+                </View>
+            );
+        }
     }
 
     return (
         <View className="flex-1">
             <FlatList
-                data={articles}
+                data={isLoading ? [] : articles}
                 keyExtractor={keyOf}
                 renderItem={renderItem}
                 onEndReached={hasMore ? reachEnd : undefined}
@@ -99,11 +129,29 @@ export function ArticleList() {
                 // theme change.
                 windowSize={7}
                 maxToRenderPerBatch={5}
+                ListHeaderComponent={
+                    header ? (
+                        <>
+                            {header}
+                            {isLoading ? (
+                                <View className="py-8">
+                                    <Spinner />
+                                </View>
+                            ) : (
+                                failure
+                            )}
+                        </>
+                    ) : undefined
+                }
                 ListEmptyComponent={
-                    <EmptyState
-                        title={t("article.empty")}
-                        description={t("article.emptyHint")}
-                    />
+                    isLoading || failed ? null : (
+                        <EmptyState
+                            title={emptyTitle ?? t("article.empty")}
+                            description={
+                                emptyTitle ? emptyHint : t("article.emptyHint")
+                            }
+                        />
+                    )
                 }
                 ListFooterComponent={
                     isLoadingMore ? (

@@ -3,6 +3,12 @@ import { create } from "zustand";
 interface ArticleRevisionState {
     /** How many times each article has been saved from this device, by id. */
     revisions: Record<string, number>;
+    /**
+     * Every save of every article, summed — what a *list* follows, since a
+     * list cannot know in advance which of its rows was written to, and a
+     * brand-new article is not in it yet at all.
+     */
+    total: number;
     bump: (articleId: string) => void;
 }
 
@@ -21,11 +27,13 @@ interface ArticleRevisionState {
  */
 export const useArticleRevisionStore = create<ArticleRevisionState>((set) => ({
     revisions: {},
+    total: 0,
     bump: (articleId) =>
         set((state) => ({
             revisions: {
                 ...state.revisions,
                 [articleId]: (state.revisions[articleId] ?? 0) + 1,
             },
+            total: state.total + 1,
         })),
 }));

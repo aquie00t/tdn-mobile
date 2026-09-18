@@ -229,3 +229,36 @@ describe("writing", () => {
         expect(contentType).toMatch(/^multipart\/form-data; boundary=/);
     });
 });
+
+describe("getMyArticles", () => {
+    it("reads the caller's own list, narrowed by status", async () => {
+        let url = "";
+        server.use(
+            http.get(`${BASE}/articles/me`, ({ request }) => {
+                url = request.url;
+                return ok([]);
+            }),
+        );
+
+        await articleApi.getMyArticles({ status: "DRAFT", page: 2 });
+
+        const params = new URL(url).searchParams;
+        expect(params.get("status")).toBe("DRAFT");
+        expect(params.get("page")).toBe("2");
+        expect(params.get("limit")).toBe("20");
+    });
+
+    it("sends no status when none is asked for", async () => {
+        let url = "";
+        server.use(
+            http.get(`${BASE}/articles/me`, ({ request }) => {
+                url = request.url;
+                return ok([]);
+            }),
+        );
+
+        await articleApi.getMyArticles();
+
+        expect(new URL(url).searchParams.has("status")).toBe(false);
+    });
+});

@@ -5,6 +5,7 @@ import type {
     CoverUploadResponse,
     CreateArticleBody,
     GetArticlesParams,
+    GetMyArticlesParams,
     UpdateArticleBody,
 } from "./article.types";
 import { assetToFormPart } from "@shared/utils/asset-to-form";
@@ -78,6 +79,26 @@ export const articleApi = {
 
     unbookmarkArticle: (articleId: string): Promise<void> =>
         api.delete(`/articles/${articleId}/bookmark`, { contentType: false }),
+
+    /**
+     * The author's own articles, drafts and archived ones included.
+     *
+     * **The only way a draft is visible at all.** The public list is filtered
+     * to published rows at the repository, so it cannot show one however it
+     * is asked, and `authorId` is taken from the token rather than passed — so
+     * this reads nobody's drafts but the caller's. Not `isPublic`: there is
+     * nothing here for a stale token to fall back to.
+     */
+    getMyArticles: (
+        params: GetMyArticlesParams = {},
+    ): Promise<ArticleSummary[]> => {
+        const query = new URLSearchParams();
+        query.set("page", String(params.page ?? 1));
+        query.set("limit", String(params.limit ?? ARTICLE_PAGE_LIMIT));
+        if (params.status) query.set("status", params.status);
+
+        return api.get<ArticleSummary[]>(`/articles/me?${query.toString()}`);
+    },
 
     /**
      * Creates a **draft**. Nothing is readable by anybody else until

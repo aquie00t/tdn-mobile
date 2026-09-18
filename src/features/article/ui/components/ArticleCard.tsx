@@ -59,13 +59,24 @@ function ArticleCardView({ article: fromServer }: ArticleCardProps) {
         ? getSafeMediaUri(article.coverImageUrl)
         : null;
 
+    /*
+     * Only the author's own list carries anything but published rows. A draft
+     * opens where it is finished rather than where it would be read, and
+     * neither a draft nor an archived article takes a like or a save — nobody
+     * else can see one to agree with it.
+     */
+    const isPublished = article.status === "PUBLISHED";
+    const isDraft = article.status === "DRAFT";
+
     return (
         <Pressable
             accessibilityRole="button"
             accessibilityLabel={article.title}
             onPress={() =>
                 router.push({
-                    pathname: "/articles/[slug]",
+                    pathname: isDraft
+                        ? "/articles/[slug]/edit"
+                        : "/articles/[slug]",
                     params: { slug: article.slug },
                 })
             }
@@ -88,14 +99,29 @@ function ArticleCardView({ article: fromServer }: ArticleCardProps) {
             )}
 
             <View className="gap-1.5">
+                {!isPublished && (
+                    <View className="self-start rounded-full border border-ink/15 px-2 py-0.5">
+                        <Text
+                            size="caption"
+                            tone="subtle"
+                            className="font-semibold uppercase"
+                        >
+                            {t(
+                                isDraft
+                                    ? "editor.statusDraft"
+                                    : "editor.statusArchived",
+                            )}
+                        </Text>
+                    </View>
+                )}
                 <Text size="lead" numberOfLines={2} className="font-bold">
                     {article.title}
                 </Text>
-                {article.excerpt.length > 0 && (
+                {article.excerpt ? (
                     <Text size="small" tone="muted" numberOfLines={3}>
                         {article.excerpt}
                     </Text>
-                )}
+                ) : null}
             </View>
 
             <View className="flex-row items-center gap-2">
@@ -121,42 +147,52 @@ function ArticleCardView({ article: fromServer }: ArticleCardProps) {
                     })}
                 </Text>
 
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("article.like")}
-                    accessibilityState={{ selected: article.isLiked }}
-                    onPress={() => void toggleLike()}
-                    hitSlop={8}
-                    className="flex-row items-center gap-1 px-1"
-                >
-                    <LikeIcon
-                        size={15}
-                        className={
-                            article.isLiked ? "text-danger" : "text-ink/40"
-                        }
-                    />
-                    {article.likeCount > 0 && (
-                        <Text size="caption" tone="subtle">
-                            {article.likeCount}
-                        </Text>
-                    )}
-                </Pressable>
+                {isPublished && (
+                    <>
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("article.like")}
+                            accessibilityState={{ selected: article.isLiked }}
+                            onPress={() => void toggleLike()}
+                            hitSlop={8}
+                            className="flex-row items-center gap-1 px-1"
+                        >
+                            <LikeIcon
+                                size={15}
+                                className={
+                                    article.isLiked
+                                        ? "text-danger"
+                                        : "text-ink/40"
+                                }
+                            />
+                            {article.likeCount > 0 && (
+                                <Text size="caption" tone="subtle">
+                                    {article.likeCount}
+                                </Text>
+                            )}
+                        </Pressable>
 
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("article.bookmark")}
-                    accessibilityState={{ selected: article.isBookmarked }}
-                    onPress={() => void toggleBookmark()}
-                    hitSlop={8}
-                    className="px-1"
-                >
-                    <BookmarkIcon
-                        size={15}
-                        className={
-                            article.isBookmarked ? "text-accent" : "text-ink/40"
-                        }
-                    />
-                </Pressable>
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("article.bookmark")}
+                            accessibilityState={{
+                                selected: article.isBookmarked,
+                            }}
+                            onPress={() => void toggleBookmark()}
+                            hitSlop={8}
+                            className="px-1"
+                        >
+                            <BookmarkIcon
+                                size={15}
+                                className={
+                                    article.isBookmarked
+                                        ? "text-accent"
+                                        : "text-ink/40"
+                                }
+                            />
+                        </Pressable>
+                    </>
+                )}
             </View>
         </Pressable>
     );

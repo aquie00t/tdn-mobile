@@ -299,7 +299,7 @@ export function ArticleScreen({ slug, renderComments }: ArticleScreenProps) {
                                     size={19}
                                     className={
                                         article.isLiked
-                                            ? "text-danger"
+                                            ? "text-like"
                                             : "text-ink/50"
                                     }
                                 />

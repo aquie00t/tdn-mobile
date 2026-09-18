@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
 import { Pressable, ScrollView, View } from "react-native";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useIsFocused, useRouter } from "expo-router";
 
 import type { Article, ArticleSummary } from "../../data/article.types";
@@ -29,8 +30,30 @@ import {
 } from "../store/article-overlay.store";
 import { useI18n } from "@shared/hooks/useI18n";
 
+export interface ArticleCommentsSlot {
+    article: Article;
+    /** The article itself, to be drawn above the thread and scrolled with it. */
+    header: ReactElement;
+    /** Tell the screen a comment was added, so the count can move. */
+    onCommentCreated: () => void;
+    /**
+     * Whether new comments are taken. An archived article keeps the thread it
+     * had — its author can still read it — but the server refuses anything
+     * new with `ArticleNotPublishedError`.
+     */
+    canComment: boolean;
+}
+
 export interface ArticleScreenProps {
     slug: string;
+    /**
+     * Draws the comment thread, with the article as its header.
+     *
+     * Handed in by the route because comments are another feature, and a
+     * feature may not import another — the arrangement that puts the article
+     * list inside the feed. Without it the article is drawn on its own.
+     */
+    renderComments?: (slot: ArticleCommentsSlot) => ReactNode;
 }
 
 const COVER = { width: "100%", height: "100%" } as const;
@@ -59,11 +82,11 @@ function formatWhen(iso: string, locale: string): string {
  * the author wrote it, rather than squeezed into a bar at `lead` and cut with
  * an ellipsis. What the bar carries is the way back and the two marks.
  *
- * Comments are not here. An article takes them, and the comment feature
- * already knows how to hang off one, but the thread has no route of its own
- * yet; it is a step rather than an omission.
+ * Comments come from the route, through `renderComments`: the comment feature
+ * already knows how to hang off an article, and the route is the one place
+ * both features may be imported.
  */
-export function ArticleScreen({ slug }: ArticleScreenProps) {
+export function ArticleScreen({ slug, renderComments }: ArticleScreenProps) {
     const { t, locale } = useI18n();
     const router = useRouter();
     const {
@@ -129,6 +152,125 @@ export function ArticleScreen({ slug }: ArticleScreenProps) {
     const cover = article?.coverImageUrl
         ? getSafeMediaUri(article.coverImageUrl)
         : null;
+
+    /*
+     * Written into the overlay rather than this screen's copy, so the card in
+     * the list behind moves too — the post detail screen does the same.
+     */
+    const handleCommentCreated = useCallback(() => {
+        if (!article) return;
+        patch(article.id, { commentCount: article.commentCount + 1 });
+    }, [article, patch]);
+
+    const content = article ? (
+        <>
+            {cover && (
+                <SensitiveMedia isSensitive={article.isSensitive}>
+                    <View className="aspect-[16/9] bg-surface-2">
+                        <Image
+                            source={{ uri: cover }}
+                            style={COVER}
+                            contentFit="cover"
+                            transition={150}
+                            alt={article.coverImageAlt ?? ""}
+                        />
+                    </View>
+                </SensitiveMedia>
+            )}
+
+            <View className="gap-3 px-4 pt-5">
+                {/*
+                 * Only the author ever reads a draft or an archived
+                 * article — anybody else is answered 404 — and without
+                 * this it would look exactly like a published one.
+                 */}
+                {article.status !== "PUBLISHED" && (
+                    <View className="self-start rounded-full border border-ink/15 px-2 py-0.5">
+                        <Text
+                            size="caption"
+                            tone="subtle"
+                            className="font-semibold uppercase"
+                        >
+                            {t(
+                                article.status === "DRAFT"
+                                    ? "editor.statusDraft"
+                                    : "editor.statusArchived",
+                            )}
+                        </Text>
+                    </View>
+                )}
+
+                <Text size="display" className="leading-9">
+                    {article.title}
+                </Text>
+
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={article.author.username}
+                    onPress={() =>
+                        router.push({
+                            pathname: "/profile/[username]",
+                            params: {
+                                username: article.author.username,
+                            },
+                        })
+                    }
+                    className="flex-row items-center gap-2.5 py-1"
+                >
+                    {article.author.avatarUrl ? (
+                        <Avatar uri={article.author.avatarUrl} size={32} />
+                    ) : (
+                        <View className="h-8 w-8 items-center justify-center rounded-full border border-ink/10 bg-surface-2">
+                            <ProfileIcon size={16} className="text-ink/40" />
+                        </View>
+                    )}
+
+                    <View className="min-w-0 flex-1">
+                        <Text size="small" numberOfLines={1}>
+                            {article.author.fullName || article.author.username}
+                        </Text>
+                        <Text size="caption" tone="subtle">
+                            {[
+                                article.publishedAt
+                                    ? formatWhen(article.publishedAt, locale)
+                                    : null,
+                                t("article.readingTime", {
+                                    n: article.readingTimeMinutes,
+                                }),
+                            ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                        </Text>
+                    </View>
+                </Pressable>
+            </View>
+
+            <MarkdownBody body={article.body} mentions={article.mentions} />
+
+            {article.tags.length > 0 && (
+                <View className="flex-row flex-wrap gap-2 px-4 pb-10">
+                    {article.tags.map((tag) => (
+                        <Pressable
+                            key={tag.name}
+                            accessibilityRole="button"
+                            accessibilityLabel={`#${tag.name}`}
+                            onPress={() =>
+                                router.push({
+                                    pathname: "/tag/[tag]",
+                                    params: { tag: tag.name },
+                                })
+                            }
+                            className="rounded-full border border-ink/15 px-3 py-1.5 active:bg-ink/5"
+                        >
+                            <Text size="caption" tone="muted">
+                                #{tag.name}
+                            </Text>
+                        </Pressable>
+                    ))}
+                </View>
+            )}
+        </>
+    ) : null;
 
     return (
         <Screen edges={{ top: true, bottom: false }}>
@@ -226,127 +368,23 @@ export function ArticleScreen({ slug }: ArticleScreenProps) {
                     onRetry={() => void retry()}
                     retryLabel={t("postList.tryAgain")}
                 />
+            ) : renderComments && article.status !== "DRAFT" ? (
+                /*
+                 * The article becomes the thread's header, so the page and its
+                 * comments scroll as one rather than as two scrollers fighting
+                 * over the gesture — the arrangement the post detail screen
+                 * has. A draft has never had a reader, so it has no thread.
+                 * An archived article was published once and may have one,
+                 * which its author can still read but nobody can add to.
+                 */
+                renderComments({
+                    article,
+                    header: content ?? <></>,
+                    onCommentCreated: handleCommentCreated,
+                    canComment: article.status === "PUBLISHED",
+                })
             ) : (
-                <ScrollView className="flex-1">
-                    {cover && (
-                        <SensitiveMedia isSensitive={article.isSensitive}>
-                            <View className="aspect-[16/9] bg-surface-2">
-                                <Image
-                                    source={{ uri: cover }}
-                                    style={COVER}
-                                    contentFit="cover"
-                                    transition={150}
-                                    alt={article.coverImageAlt ?? ""}
-                                />
-                            </View>
-                        </SensitiveMedia>
-                    )}
-
-                    <View className="gap-3 px-4 pt-5">
-                        {/*
-                         * Only the author ever reads a draft or an archived
-                         * article — anybody else is answered 404 — and without
-                         * this it would look exactly like a published one.
-                         */}
-                        {article.status !== "PUBLISHED" && (
-                            <View className="self-start rounded-full border border-ink/15 px-2 py-0.5">
-                                <Text
-                                    size="caption"
-                                    tone="subtle"
-                                    className="font-semibold uppercase"
-                                >
-                                    {t(
-                                        article.status === "DRAFT"
-                                            ? "editor.statusDraft"
-                                            : "editor.statusArchived",
-                                    )}
-                                </Text>
-                            </View>
-                        )}
-
-                        <Text size="display" className="leading-9">
-                            {article.title}
-                        </Text>
-
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={article.author.username}
-                            onPress={() =>
-                                router.push({
-                                    pathname: "/profile/[username]",
-                                    params: {
-                                        username: article.author.username,
-                                    },
-                                })
-                            }
-                            className="flex-row items-center gap-2.5 py-1"
-                        >
-                            {article.author.avatarUrl ? (
-                                <Avatar
-                                    uri={article.author.avatarUrl}
-                                    size={32}
-                                />
-                            ) : (
-                                <View className="h-8 w-8 items-center justify-center rounded-full border border-ink/10 bg-surface-2">
-                                    <ProfileIcon
-                                        size={16}
-                                        className="text-ink/40"
-                                    />
-                                </View>
-                            )}
-
-                            <View className="min-w-0 flex-1">
-                                <Text size="small" numberOfLines={1}>
-                                    {article.author.fullName ||
-                                        article.author.username}
-                                </Text>
-                                <Text size="caption" tone="subtle">
-                                    {[
-                                        article.publishedAt
-                                            ? formatWhen(
-                                                  article.publishedAt,
-                                                  locale,
-                                              )
-                                            : null,
-                                        t("article.readingTime", {
-                                            n: article.readingTimeMinutes,
-                                        }),
-                                    ]
-                                        .filter(Boolean)
-                                        .join(" · ")}
-                                </Text>
-                            </View>
-                        </Pressable>
-                    </View>
-
-                    <MarkdownBody
-                        body={article.body}
-                        mentions={article.mentions}
-                    />
-
-                    {article.tags.length > 0 && (
-                        <View className="flex-row flex-wrap gap-2 px-4 pb-10">
-                            {article.tags.map((tag) => (
-                                <Pressable
-                                    key={tag.name}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={`#${tag.name}`}
-                                    onPress={() =>
-                                        router.push({
-                                            pathname: "/tag/[tag]",
-                                            params: { tag: tag.name },
-                                        })
-                                    }
-                                    className="rounded-full border border-ink/15 px-3 py-1.5 active:bg-ink/5"
-                                >
-                                    <Text size="caption" tone="muted">
-                                        #{tag.name}
-                                    </Text>
-                                </Pressable>
-                            ))}
-                        </View>
-                    )}
-                </ScrollView>
+                <ScrollView className="flex-1">{content}</ScrollView>
             )}
         </Screen>
     );

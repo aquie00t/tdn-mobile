@@ -29,6 +29,13 @@ export interface CommentListProps {
      * target's own comment count. The list has no way to reach a post.
      */
     onCommentCreated?: () => void;
+    /**
+     * `false` where the thread can be read but no longer answered — an
+     * archived article, whose comments its author can still see but which the
+     * server refuses new ones on. The box goes rather than inviting a comment
+     * that can only come back refused.
+     */
+    canComment?: boolean;
 }
 
 const keyOf = (comment: Comment) => comment.id;
@@ -45,6 +52,7 @@ export function CommentList({
     target,
     header,
     onCommentCreated,
+    canComment = true,
 }: CommentListProps) {
     const { t } = useI18n();
 
@@ -174,10 +182,12 @@ export function CommentList({
                 keyboardShouldPersistTaps="handled"
             />
 
-            <CommentBox
-                target={stableTarget}
-                onCommentCreated={handleCreated}
-            />
+            {canComment && (
+                <CommentBox
+                    target={stableTarget}
+                    onCommentCreated={handleCreated}
+                />
+            )}
         </KeyboardAvoidingView>
     );
 }

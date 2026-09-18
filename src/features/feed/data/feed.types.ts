@@ -5,6 +5,17 @@ export type PostType =
 
 export type PostCategory = "AI" | "GAME" | "MOBILE" | "BACKEND" | "FRONTEND";
 
+/**
+ * What the strip above the feed can be showing.
+ *
+ * Wider than `PostType` because one of the tabs is not a post type at all:
+ * articles are a separate resource with their own endpoint, and the web's
+ * strip carries them in the same row for the same reason — they are the fourth
+ * thing somebody might be reading, not a fourth kind of post. Everything that
+ * takes a `PostType` still takes one; this is only what the strip selects.
+ */
+export type FeedTab = PostType | "ARTICLES";
+
 export interface PostAuthor {
     id: string;
     username: string;

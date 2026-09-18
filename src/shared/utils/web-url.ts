@@ -48,3 +48,34 @@ export function commentUrl(commentId: string): string {
 export function buildWebUrl(origin: string, path: string): string {
     return `${origin.replace(/\/+$/, "")}${path}`;
 }
+
+/**
+ * Schemes a link somebody *wrote* may use.
+ *
+ * `getSafeMediaUri` guards the same shape for a different reason: those URLs
+ * come from our own API and the check is defence in depth. This one is not —
+ * an article body is written by anybody who can publish, and its links reach
+ * `Linking.openURL` unaltered.
+ *
+ * On Android that call runs `Intent.parseUri` with `URI_INTENT_SCHEME`, so an
+ * `intent://` link can name a component and its extras; `file://` throws where
+ * it does not leak a path off the device. Neither is something an author gets
+ * to reach from a paragraph of prose, so the allowlist is the two schemes a
+ * link is for.
+ *
+ * A scheme test rather than a `new URL()` round trip, for the reason
+ * `media-uri.ts` gives: React Native's `URL` is a partial polyfill that parses
+ * enough to look right under Node and differently on a phone.
+ */
+const LINK_SCHEMES = /^https?:\/\//i;
+
+/**
+ * A link from a body, or `null` when its scheme is not one to follow.
+ *
+ * @param href - The URL as the author wrote it
+ * @returns The URL when it is safe to open, `null` otherwise
+ */
+export function safeLinkUri(href: string | undefined): string | null {
+    if (!href) return null;
+    return LINK_SCHEMES.test(href.trim()) ? href.trim() : null;
+}

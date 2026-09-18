@@ -1,27 +1,30 @@
 import { Pressable, View } from "react-native";
 
-import type { PostType } from "../../data/feed.types";
+import type { FeedTab } from "../../data/feed.types";
 import { Text } from "@shared/ui/Text";
 import type { TranslationKey } from "@shared/i18n/translations";
 import { useI18n } from "@shared/hooks/useI18n";
 
 /**
- * The three the web's strip carries, in its order.
+ * The four the web's strip carries, in its order.
  *
  * `JOB_POSTING` is a post type but not a tab — it is not on the web's strip
- * either, and there is no translated label for it. Articles is the fourth slot
- * there and is missing here on purpose: articles are a separate resource with
- * their own endpoint, and they arrive with PR 28.
+ * either, and there is no translated label for it. Articles *is* a tab and is
+ * not a post type: it names a separate resource with its own endpoint, which
+ * is why the strip selects a `FeedTab` rather than a `PostType`. What the tab
+ * shows is handed to the feed screen from outside, so this feature still
+ * imports nothing from the article one.
  */
-const TABS: { value: PostType; label: TranslationKey }[] = [
+const TABS: { value: FeedTab; label: TranslationKey }[] = [
     { value: "COMMUNITY", label: "feed.community" },
     { value: "TECH_NEWS", label: "feed.news" },
     { value: "SYSTEM_UPDATE", label: "feed.updates" },
+    { value: "ARTICLES", label: "feed.articles" },
 ];
 
 export interface FeedTypeStripProps {
-    active: PostType;
-    onSelect: (type: PostType) => void;
+    active: FeedTab;
+    onSelect: (tab: FeedTab) => void;
 }
 
 /**

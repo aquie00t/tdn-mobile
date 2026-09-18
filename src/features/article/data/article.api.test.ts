@@ -159,3 +159,73 @@ describe("the undo paths", () => {
         await expect(articleApi.unbookmarkArticle("a1")).resolves.toBeDefined();
     });
 });
+
+describe("writing", () => {
+    it("sends the caller's key with a create", async () => {
+        let key: string | null = null;
+        server.use(
+            http.post(`${BASE}/articles`, ({ request }) => {
+                key = request.headers.get("Idempotency-Key");
+                return ok({ id: "a1", slug: "a", status: "DRAFT" });
+            }),
+        );
+
+        await articleApi.createArticle({ title: "A", body: "B" }, "key-1");
+
+        expect(key).toBe("key-1");
+    });
+
+    it("moves an article along by id, on its own paths", async () => {
+        const paths: string[] = [];
+        const prefix = new URL(BASE).pathname;
+        const seen = (request: Request) =>
+            `${request.method} ${new URL(request.url).pathname.slice(prefix.length)}`;
+        const record = ({ request }: { request: Request }) => {
+            paths.push(seen(request));
+            return ok({ id: "a1", slug: "a", status: "PUBLISHED" });
+        };
+        server.use(
+            http.patch(`${BASE}/articles/a1`, record),
+            http.post(`${BASE}/articles/a1/publish`, record),
+            http.post(`${BASE}/articles/a1/archive`, record),
+            http.delete(`${BASE}/articles/a1`, ({ request }) => {
+                paths.push(seen(request));
+                return new HttpResponse(null, { status: 204 });
+            }),
+        );
+
+        await articleApi.updateArticle("a1", { title: "B" });
+        await articleApi.publishArticle("a1");
+        await articleApi.archiveArticle("a1");
+        await articleApi.deleteArticle("a1");
+
+        expect(paths).toEqual([
+            "PATCH /articles/a1",
+            "POST /articles/a1/publish",
+            "POST /articles/a1/archive",
+            "DELETE /articles/a1",
+        ]);
+    });
+
+    it("uploads a cover as multipart, to the cover channel", async () => {
+        let contentType: string | null = null;
+        server.use(
+            http.post(`${BASE}/articles/cover`, ({ request }) => {
+                contentType = request.headers.get("Content-Type");
+                return ok({
+                    coverImageKey: "covers/k1",
+                    coverImageUrl: "https://cdn.test/k1.jpg",
+                });
+            }),
+        );
+
+        const { coverImageKey } = await articleApi.uploadCover({
+            uri: "file:///cover.jpg",
+            mimeType: "image/jpeg",
+        });
+
+        expect(coverImageKey).toBe("covers/k1");
+        // Written by the runtime with its boundary, never by us.
+        expect(contentType).toMatch(/^multipart\/form-data; boundary=/);
+    });
+});

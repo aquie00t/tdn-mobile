@@ -409,6 +409,19 @@ Deliberately last. Markdown authoring, cover upload, autosave and
 draft/publish. The most expensive screen on a phone and the least used; it
 earns its place only once everything else is there.
 
+Split in two, because the editor alone is past the size a PR should be and
+because nothing on this client could reach a draft once it was closed:
+
+- **29a — the editor.** A new article from the Articles tab, editing from the
+  reading screen, autosave, publish, archive and delete. The create carries
+  an idempotency key the web's does not, and that needs more than a key: the
+  server fingerprints the body and refuses the same key with different text,
+  so a create in doubt is repeated *as it was sent*, and what was typed since
+  follows as an update.
+- **29b — your articles.** Posts and Articles tabs on a profile. Your own
+  reads `/articles/me`, filtered by status — the only endpoint that returns a
+  draft — and anybody else's reads the public list by `authorUsername`.
+
 ---
 
 ## Deployment dependencies, collected

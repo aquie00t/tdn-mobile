@@ -1,10 +1,16 @@
 import { Image } from "expo-image";
 import { Pressable, ScrollView, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useEffect, useRef } from "react";
+import { useIsFocused, useRouter } from "expo-router";
 
 import type { Article, ArticleSummary } from "../../data/article.types";
 import { Avatar } from "@shared/ui/Avatar";
-import { BookmarkIcon, LikeIcon, ProfileIcon } from "@shared/ui/icons/lucide";
+import {
+    BookmarkIcon,
+    EditIcon,
+    LikeIcon,
+    ProfileIcon,
+} from "@shared/ui/icons/lucide";
 import { EmptyState } from "@shared/ui/EmptyState";
 import { ErrorState } from "@shared/ui/ErrorState";
 import { getSafeMediaUri } from "@shared/utils/media-uri";
@@ -16,6 +22,7 @@ import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
 import { useArticle } from "../hooks/useArticle";
 import { useArticleActions } from "../hooks/useArticleActions";
+import { useArticleRevisionStore } from "../store/article-revision.store";
 import {
     useArticleOverlayStore,
     withOverlay,
@@ -65,7 +72,33 @@ export function ArticleScreen({ slug }: ArticleScreenProps) {
         error,
         notFound,
         retry,
+        reload,
     } = useArticle(slug);
+
+    /*
+     * The editor saves as it closes, so on the way back the last save may
+     * still be in the air — a read on focus would fetch the text from before
+     * it and never ask again. So this follows the saves themselves: each one
+     * that lands bumps a counter, and a counter this screen has not read yet
+     * is read once it is in view. Not while the editor is on top, which would
+     * be a request per autosave for a screen nobody can see.
+     */
+    const revision = useArticleRevisionStore((s) =>
+        fromServer ? (s.revisions[fromServer.id] ?? 0) : 0,
+    );
+    const isFocused = useIsFocused();
+    const readRevision = useRef<number | null>(null);
+    useEffect(() => {
+        if (!fromServer || !isFocused) return;
+        if (readRevision.current === null) {
+            // The first read is `useArticle`'s own, already answered.
+            readRevision.current = revision;
+            return;
+        }
+        if (readRevision.current === revision) return;
+        readRevision.current = revision;
+        void reload();
+    }, [fromServer, isFocused, revision, reload]);
 
     /*
      * The same overlay the list's cards read, so a like made here shows on the
@@ -149,6 +182,26 @@ export function ArticleScreen({ slug }: ArticleScreenProps) {
                                     }
                                 />
                             </Pressable>
+
+                            {article.author.isMe && (
+                                <Pressable
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t("editor.editTitle")}
+                                    onPress={() =>
+                                        router.push({
+                                            pathname: "/articles/[slug]/edit",
+                                            params: { slug: article.slug },
+                                        })
+                                    }
+                                    hitSlop={8}
+                                    className="h-9 w-9 items-center justify-center rounded-full active:bg-ink/10"
+                                >
+                                    <EditIcon
+                                        size={18}
+                                        className="text-ink/50"
+                                    />
+                                </Pressable>
+                            )}
                         </View>
                     ) : undefined
                 }
@@ -190,6 +243,27 @@ export function ArticleScreen({ slug }: ArticleScreenProps) {
                     )}
 
                     <View className="gap-3 px-4 pt-5">
+                        {/*
+                         * Only the author ever reads a draft or an archived
+                         * article — anybody else is answered 404 — and without
+                         * this it would look exactly like a published one.
+                         */}
+                        {article.status !== "PUBLISHED" && (
+                            <View className="self-start rounded-full border border-ink/15 px-2 py-0.5">
+                                <Text
+                                    size="caption"
+                                    tone="subtle"
+                                    className="font-semibold uppercase"
+                                >
+                                    {t(
+                                        article.status === "DRAFT"
+                                            ? "editor.statusDraft"
+                                            : "editor.statusArchived",
+                                    )}
+                                </Text>
+                            </View>
+                        )}
+
                         <Text size="display" className="leading-9">
                             {article.title}
                         </Text>

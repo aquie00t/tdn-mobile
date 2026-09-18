@@ -17,6 +17,7 @@ import {
     ImageOff,
     ImagePlus,
     Mail,
+    Pencil,
     MessageCircle,
     Monitor,
     Plus,
@@ -110,6 +111,9 @@ export const AddMediaIcon = themed(ImagePlus);
  */
 export const CreateIcon = themed(Plus);
 export const CameraIcon = themed(Camera);
+
+/** Changing something already written — an article, by its author. */
+export const EditIcon = themed(Pencil);
 export const CloseIcon = themed(X);
 
 /** A tick on something chosen — the onboarding picker's tiles. */

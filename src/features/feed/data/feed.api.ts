@@ -144,4 +144,12 @@ export const feedApi = {
 
     unsavePost: (postId: string): Promise<void> =>
         api.delete(`/posts/${postId}/unsave`, { contentType: false }),
+
+    /**
+     * Deletes your own post, and with it **every post that quoted it** —
+     * `quotedPost` is `onDelete: Cascade`, so other people's quotes go too and
+     * nothing is left in their place. Somebody else's post answers 403.
+     */
+    deletePost: (postId: string): Promise<void> =>
+        api.delete(`/posts/${postId}`, { contentType: false }),
 };

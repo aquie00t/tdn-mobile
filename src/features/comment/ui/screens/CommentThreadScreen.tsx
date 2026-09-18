@@ -1,9 +1,12 @@
 import { FlatList, KeyboardAvoidingView, View } from "react-native";
 import { useCallback, useEffect, useMemo } from "react";
+import { useIsFocused, useRouter } from "expo-router";
 
 import { Button } from "@shared/ui/Button";
 import { CommentBox } from "../components/CommentBox";
 import { CommentCard } from "../components/CommentCard";
+import { useCommentOverlayStore } from "../store/comment-overlay.store";
+import { useDeletedContentStore } from "@shared/store/deleted-content.store";
 import type { Comment, CommentTarget } from "../../data/comment.types";
 import { EmptyState } from "@shared/ui/EmptyState";
 import { ErrorState } from "@shared/ui/ErrorState";
@@ -14,6 +17,7 @@ import { Text } from "@shared/ui/Text";
 import { useComment } from "../hooks/useComment";
 import { useCommentReplies } from "../hooks/useCommentReplies";
 import { useI18n } from "@shared/hooks/useI18n";
+import { useWithoutDeletedComments } from "@shared/hooks/useWithoutDeleted";
 
 const keyOf = (reply: Comment) => reply.id;
 
@@ -78,9 +82,47 @@ export function CommentThreadScreen({ commentId }: { commentId: string }) {
           }).format(new Date(comment.createdAt))
         : "";
 
+    /*
+     * The head gone — deleted from its own card here, or from another screen
+     * — leaves this screen about nothing, and its replies went with it on the
+     * server. So it closes rather than showing an empty thread.
+     */
+    const router = useRouter();
+    const isFocused = useIsFocused();
+    const isHeadGone = useDeletedContentStore(
+        (s) => s.comments[commentId] === true,
+    );
+    /*
+     * Only while this screen is the one showing. `router.back()` acts on the
+     * screen in view, not on the one that asked — so a thread whose head was
+     * deleted from another screen on top would close *that* screen. It waits
+     * instead, and goes once the reader comes back to it.
+     */
+    useEffect(() => {
+        if (isHeadGone && isFocused && router.canGoBack()) router.back();
+    }, [isHeadGone, isFocused, router]);
+
+    const visibleReplies = useWithoutDeletedComments(replies);
+
+    /*
+     * A reply deleted from this list takes one off the head's count, as the
+     * server does. Read from the overlay as it stands, so two deletes in a row
+     * take off two.
+     */
+    const patchComment = useCommentOverlayStore((s) => s.patch);
+    const handleReplyDeleted = useCallback(() => {
+        const current =
+            useCommentOverlayStore.getState().overlays[commentId]?.replyCount ??
+            comment?.replyCount ??
+            0;
+        patchComment(commentId, { replyCount: Math.max(0, current - 1) });
+    }, [commentId, comment?.replyCount, patchComment]);
+
     const renderItem = useCallback(
-        ({ item }: { item: Comment }) => <CommentCard comment={item} />,
-        [],
+        ({ item }: { item: Comment }) => (
+            <CommentCard comment={item} onDeleted={handleReplyDeleted} />
+        ),
+        [handleReplyDeleted],
     );
 
     const retry = () => {
@@ -105,7 +147,7 @@ export function CommentThreadScreen({ commentId }: { commentId: string }) {
             {comment && (
                 <KeyboardAvoidingView className="flex-1" behavior="padding">
                     <FlatList
-                        data={replies}
+                        data={visibleReplies}
                         keyExtractor={keyOf}
                         renderItem={renderItem}
                         ListHeaderComponent={

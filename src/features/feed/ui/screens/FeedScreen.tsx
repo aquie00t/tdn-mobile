@@ -23,6 +23,7 @@ import { Text } from "@shared/ui/Text";
 import { readerFacingMessage } from "@shared/utils/report-error";
 import { useFeed } from "../hooks/useFeed";
 import { useI18n } from "@shared/hooks/useI18n";
+import { useWithoutDeletedPosts } from "@shared/hooks/useWithoutDeleted";
 
 /** Half a screen from the end, which is about one row's reading time. */
 const END_THRESHOLD = 0.5;
@@ -84,6 +85,8 @@ export function FeedScreen({ articles }: FeedScreenProps) {
         retryLoadMore,
         replacePost,
     } = useFeed(followedOnly, categories);
+    // Without what the reader deleted, so an emptied feed says so.
+    const visiblePosts = useWithoutDeletedPosts(posts);
 
     /*
      * Keyed on what makes one feed a different feed, not on the objects that
@@ -192,7 +195,7 @@ export function FeedScreen({ articles }: FeedScreenProps) {
                 />
             ) : (
                 <FlatList
-                    data={posts}
+                    data={visiblePosts}
                     keyExtractor={keyOf}
                     renderItem={renderItem}
                     refreshing={isRefreshing}

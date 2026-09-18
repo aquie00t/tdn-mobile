@@ -13,6 +13,7 @@ import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
 import { useFeed } from "@features/feed/ui/hooks/useFeed";
 import { useI18n } from "@shared/hooks/useI18n";
+import { useWithoutDeletedPosts } from "@shared/hooks/useWithoutDeleted";
 
 const keyOf = (post: Post) => post.id;
 
@@ -51,6 +52,7 @@ export default function TagRoute() {
         loadMore,
         replacePost,
     } = useFeed();
+    const visiblePosts = useWithoutDeletedPosts(posts);
 
     useEffect(() => {
         if (!tag) return;
@@ -84,7 +86,7 @@ export default function TagRoute() {
                 />
             ) : (
                 <FlatList
-                    data={posts}
+                    data={visiblePosts}
                     keyExtractor={keyOf}
                     renderItem={renderItem}
                     onEndReached={() => void loadMore()}

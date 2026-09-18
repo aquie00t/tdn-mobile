@@ -20,6 +20,10 @@ import { readerFacingMessage } from "@shared/utils/report-error";
 import { cn } from "@shared/ui/cn";
 import { useBookmarks } from "@shared/hooks/useBookmarks";
 import { useI18n } from "@shared/hooks/useI18n";
+import {
+    useWithoutDeletedComments,
+    useWithoutDeletedPosts,
+} from "@shared/hooks/useWithoutDeleted";
 
 type SavedTab = "posts" | "comments" | "articles";
 
@@ -60,6 +64,9 @@ export default function SavedRoute() {
         loadMore,
         replacePost,
     } = useBookmarks<Post, Comment, ArticleSummary>();
+    // Without what the reader deleted, so an emptied tab shows its empty state.
+    const visiblePosts = useWithoutDeletedPosts(posts);
+    const visibleComments = useWithoutDeletedComments(comments);
 
     const renderPost = useCallback(
         ({ item }: { item: Post }) => (
@@ -167,7 +174,9 @@ export default function SavedRoute() {
      * nothing while they are looking at it.
      */
     const hasNothing =
-        posts.length === 0 && comments.length === 0 && articles.length === 0;
+        visiblePosts.length === 0 &&
+        visibleComments.length === 0 &&
+        articles.length === 0;
 
     return (
         <Screen edges={{ top: true, bottom: false }}>
@@ -227,7 +236,7 @@ export default function SavedRoute() {
                 <>
                     <ListPane isVisible={tab === "posts"}>
                         <FlatList
-                            data={posts}
+                            data={visiblePosts}
                             keyExtractor={postKey}
                             renderItem={renderPost}
                             onEndReached={
@@ -249,7 +258,7 @@ export default function SavedRoute() {
 
                     <ListPane isVisible={tab === "comments"}>
                         <FlatList
-                            data={comments}
+                            data={visibleComments}
                             keyExtractor={commentKey}
                             renderItem={renderComment}
                             onEndReached={

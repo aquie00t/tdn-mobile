@@ -28,6 +28,7 @@ import {
     Server,
     Settings,
     Share2,
+    Trash2,
     Smartphone,
     Sparkles,
     TrendingUp,
@@ -128,6 +129,7 @@ export const TrendIcon = themed(TrendingUp);
 export const BookmarkIcon = themed(Bookmark);
 export const BlockIcon = themed(Ban);
 export const ReportIcon = themed(Flag);
+export const DeleteIcon = themed(Trash2);
 export const ShareIcon = themed(Share2);
 
 /** A post's three counters, in the order the web's card draws them. */

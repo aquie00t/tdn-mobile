@@ -12,6 +12,7 @@ import { Spinner } from "@shared/ui/Spinner";
 import { Text } from "@shared/ui/Text";
 import { useComments } from "../hooks/useComments";
 import { useI18n } from "@shared/hooks/useI18n";
+import { useWithoutDeletedComments } from "@shared/hooks/useWithoutDeleted";
 
 export interface CommentListProps {
     target: CommentTarget;
@@ -29,6 +30,11 @@ export interface CommentListProps {
      * target's own comment count. The list has no way to reach a post.
      */
     onCommentCreated?: () => void;
+    /**
+     * The same, for one of your own comments deleted from the list, with how
+     * many the server took off the target's count.
+     */
+    onCommentDeleted?: (removed: number) => void;
     /**
      * `false` where the thread can be read but no longer answered — an
      * archived article, whose comments its author can still see but which the
@@ -52,6 +58,7 @@ export function CommentList({
     target,
     header,
     onCommentCreated,
+    onCommentDeleted,
     canComment = true,
 }: CommentListProps) {
     const { t } = useI18n();
@@ -85,9 +92,28 @@ export function CommentList({
         void fetchComments();
     }, [fetchComments]);
 
+    const visibleComments = useWithoutDeletedComments(comments);
+
+    /*
+     * What the target's count loses, which depends on the target. A post
+     * keeps a counter the server moves down by one, replies or not. An
+     * article's count is derived from its rows, and the replies were rows too:
+     * they go with the comment, so they come off the count with it.
+     */
+    const handleDeleted = useCallback(
+        (comment: Comment) => {
+            onCommentDeleted?.(
+                targetType === "article" ? 1 + comment.replyCount : 1,
+            );
+        },
+        [onCommentDeleted, targetType],
+    );
+
     const renderItem = useCallback(
-        ({ item }: { item: Comment }) => <CommentCard comment={item} />,
-        [],
+        ({ item }: { item: Comment }) => (
+            <CommentCard comment={item} onDeleted={handleDeleted} />
+        ),
+        [handleDeleted],
     );
 
     const handleCreated = useCallback(
@@ -111,7 +137,7 @@ export function CommentList({
          */
         <KeyboardAvoidingView className="flex-1" behavior="padding">
             <FlatList
-                data={comments}
+                data={visibleComments}
                 keyExtractor={keyOf}
                 renderItem={renderItem}
                 ListHeaderComponent={

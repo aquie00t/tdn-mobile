@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from "expo-router";
+import { useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect } from "react";
 
 import { CommentList } from "@features/comment/ui/components/CommentList";
@@ -10,6 +10,10 @@ import { Spinner } from "@shared/ui/Spinner";
 import { useI18n } from "@shared/hooks/useI18n";
 import { usePost } from "@features/feed/ui/hooks/usePost";
 import { usePostOverlayStore } from "@features/feed/ui/store/post-overlay.store";
+import {
+    isPostGone,
+    useDeletedContentStore,
+} from "@shared/store/deleted-content.store";
 
 /**
  * One post and its thread.
@@ -36,12 +40,48 @@ export default function PostDetailRoute() {
         void fetchPost();
     }, [fetchPost]);
 
-    const handleCommentCreated = useCallback(() => {
-        if (!post) return;
-        // Written into the overlay rather than into this screen's copy, so the
-        // feed's row behind it moves too.
-        patch(post.id, { commentCount: post.commentCount + 1 });
-    }, [post, patch]);
+    /*
+     * Written into the overlay rather than into this screen's copy, so the
+     * feed's row behind it moves too — and read from it as it stands. Counted
+     * from the server's copy, two comments in a row moved the number by one.
+     */
+    const moveCommentCount = useCallback(
+        (by: number) => {
+            if (!post) return;
+            const current =
+                usePostOverlayStore.getState().overlays[post.id]
+                    ?.commentCount ?? post.commentCount;
+            patch(post.id, { commentCount: Math.max(0, current + by) });
+        },
+        [post, patch],
+    );
+    const handleCommentCreated = useCallback(
+        () => moveCommentCount(1),
+        [moveCommentCount],
+    );
+    const handleCommentDeleted = useCallback(
+        (removed: number) => moveCommentCount(-removed),
+        [moveCommentCount],
+    );
+
+    /*
+     * A post deleted from its own header — or one quoting a post deleted
+     * elsewhere, which the server deletes with it — leaves this screen about
+     * nothing. It closes rather than showing a thread with no post.
+     */
+    const router = useRouter();
+    const isFocused = useIsFocused();
+    const isGone = useDeletedContentStore((s) =>
+        post ? isPostGone(post, s.posts) : false,
+    );
+    /*
+     * Only while this screen is the one showing: `router.back()` acts on the
+     * screen in view, so a detail screen underneath would close whatever is
+     * on top of it — or switch tabs. It waits, and goes once it is back.
+     */
+    useEffect(() => {
+        if (isGone && isFocused && router.canGoBack()) router.back();
+    }, [isGone, isFocused, router]);
 
     return (
         <Screen edges={{ top: true, bottom: false }}>
@@ -67,6 +107,7 @@ export default function PostDetailRoute() {
                     target={{ type: "post", id: post.id }}
                     header={<PostDetailHeader post={post} />}
                     onCommentCreated={handleCommentCreated}
+                    onCommentDeleted={handleCommentDeleted}
                 />
             )}
         </Screen>

@@ -229,6 +229,7 @@ describe("like and save", () => {
         ["unlikePost", "DELETE", "/posts/p1/unlike"],
         ["savePost", "POST", "/posts/p1/save"],
         ["unsavePost", "DELETE", "/posts/p1/unsave"],
+        ["deletePost", "DELETE", "/posts/p1"],
     ])("%s is %s %s", async (name, method, path) => {
         let seen: { method: string; path: string } | null = null;
 

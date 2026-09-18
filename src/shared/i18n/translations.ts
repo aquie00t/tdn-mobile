@@ -135,6 +135,8 @@ const en = {
     "post.deleteTitle": "Delete post?",
     "post.deleteBody":
         "This action cannot be undone. The post will be permanently removed.",
+    "post.deleteQuotes":
+        "The {{n}} posts quoting it will be deleted with it, including other people's.",
     "post.shareText": "You should check out this post!",
     "post.comments": "Comments",
     "post.like": "Like post",
@@ -160,6 +162,7 @@ const en = {
     "comment.deleteTitle": "Delete comment?",
     "comment.deleteBody":
         "This action cannot be undone. The comment will be permanently removed.",
+    "comment.deleteReplies": "Its {{n}} replies will be deleted with it.",
     "comment.shareText": "Check out this comment!",
 
     "report.action": "Report",
@@ -914,6 +917,8 @@ const tr: Record<TranslationKey, string> = {
     "post.deleteTitle": "Gönderi silinsin mi?",
     "post.deleteBody":
         "Bu işlem geri alınamaz. Gönderi kalıcı olarak kaldırılacak.",
+    "post.deleteQuotes":
+        "Onu alıntılayan {{n}} gönderi de, başkalarınınkiler dahil, onunla birlikte silinir.",
     "post.shareText": "Bu gönderiye bir göz atmalısın!",
     "post.comments": "Yorumlar",
     "post.like": "Gönderiyi beğen",
@@ -939,6 +944,7 @@ const tr: Record<TranslationKey, string> = {
     "comment.deleteTitle": "Yorum silinsin mi?",
     "comment.deleteBody":
         "Bu işlem geri alınamaz. Yorum kalıcı olarak kaldırılacak.",
+    "comment.deleteReplies": "{{n}} yanıtı da onunla birlikte silinir.",
     "comment.shareText": "Bu yoruma bir göz at!",
 
     "report.action": "Şikayet et",

@@ -21,12 +21,14 @@ export default function ArticleRoute() {
                 article,
                 header,
                 onCommentCreated,
+                onCommentDeleted,
                 canComment,
             }) => (
                 <CommentList
                     target={{ type: "article", id: article.id }}
                     header={header}
                     onCommentCreated={onCommentCreated}
+                    onCommentDeleted={onCommentDeleted}
                     canComment={canComment}
                 />
             )}

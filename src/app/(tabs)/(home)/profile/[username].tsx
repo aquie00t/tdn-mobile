@@ -20,6 +20,7 @@ import { Spinner } from "@shared/ui/Spinner";
 import { useI18n } from "@shared/hooks/useI18n";
 import { useProfile } from "@features/profile/ui/hooks/useProfile";
 import { useUserPosts } from "@features/feed/ui/hooks/useUserPosts";
+import { useWithoutDeletedPosts } from "@shared/hooks/useWithoutDeleted";
 
 const keyOf = (post: Post) => post.id;
 
@@ -41,6 +42,9 @@ export default function ProfileRoute() {
     const { profile, isLoading, error, fetchProfile, retry, patch } =
         useProfile(username);
     const posts = useUserPosts(username);
+    // Without what the reader deleted, so deleting the last one shows the
+    // empty state rather than a list of nothing.
+    const visiblePosts = useWithoutDeletedPosts(posts.posts);
     const [tab, setTab] = useState<ProfileTab>("posts");
 
     // The screens drive their own reads, as they do on the feed and the
@@ -130,7 +134,7 @@ export default function ProfileRoute() {
 
             {profile && !error && (tab === "posts" || hasBlockRelation) && (
                 <FlatList
-                    data={hasBlockRelation ? [] : posts.posts}
+                    data={hasBlockRelation ? [] : visiblePosts}
                     keyExtractor={keyOf}
                     renderItem={renderItem}
                     onEndReached={posts.loadMore}

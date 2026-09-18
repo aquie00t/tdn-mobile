@@ -11,7 +11,9 @@ import {
 } from "@shared/ui/icons/lucide";
 import type { Comment } from "../../data/comment.types";
 import type { LucideIcon } from "lucide-react-native";
+import { DeleteButton } from "@shared/ui/DeleteButton";
 import { ReportButton } from "@shared/ui/ReportButton";
+import { useDeletedContentStore } from "@shared/store/deleted-content.store";
 import { RichText } from "@shared/ui/RichText";
 import { Text } from "@shared/ui/Text";
 import { isOwnContent } from "@shared/utils/is-own-content";
@@ -39,6 +41,12 @@ export interface CommentCardProps {
      * where you are, none of which a phone has.
      */
     isHead?: boolean;
+    /**
+     * Told once your own comment has been deleted, so the screen above can
+     * move the count of what it hung off. The row itself goes on its own —
+     * see `deleted-content.store`.
+     */
+    onDeleted?: (comment: Comment) => void;
 }
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
@@ -70,10 +78,11 @@ function formatCommentDate(iso: string, locale: string): string {
  * checks that a parent belongs to the same post — and the web has carried the
  * per-comment screen from the start.
  */
-function CommentCardView({
+function CommentCardBody({
     comment: serverComment,
     isPressable = true,
     isHead = false,
+    onDeleted,
 }: CommentCardProps) {
     const { t, locale } = useI18n();
     const router = useRouter();
@@ -84,8 +93,13 @@ function CommentCardView({
     const viewerId = useSessionStore((s) => s.user?.id);
     const isOwn = isOwnContent(comment.author, viewerId);
 
-    const { handleLike, isLikeLoading, handleBookmark, handleShare } =
-        useCommentActions({ comment });
+    const {
+        handleLike,
+        isLikeLoading,
+        handleBookmark,
+        handleShare,
+        handleDelete,
+    } = useCommentActions({ comment, onDeleted });
 
     const open = () =>
         router.push({
@@ -211,7 +225,28 @@ function CommentCardView({
                             onPress={() => void handleShare()}
                         />
 
-                        {/* Somebody else's comment only, as on a post. */}
+                        {/*
+                         * Delete on your own, report on anybody else's —
+                         * never both, as on a post.
+                         */}
+                        {isOwn && (
+                            <View className="ml-auto">
+                                <DeleteButton
+                                    title={t("comment.deleteTitle")}
+                                    body={t("comment.deleteBody")}
+                                    // Replies go with it: `parent` cascades.
+                                    warning={
+                                        comment.replyCount > 0
+                                            ? t("comment.deleteReplies", {
+                                                  n: comment.replyCount,
+                                              })
+                                            : null
+                                    }
+                                    onConfirm={() => void handleDelete()}
+                                    size={isHead ? 16 : 14}
+                                />
+                            </View>
+                        )}
                         {!isOwn && (
                             <View className="ml-auto">
                                 <ReportButton
@@ -230,6 +265,19 @@ function CommentCardView({
 
 /** Rows are recycled by the list above; a comment changes only when it does. */
 export const CommentCard = memo(CommentCardView);
+
+/**
+ * Nothing at all once the comment is deleted, in every list it is drawn in.
+ * Split from the body for the reason the post card is: no hooks for a row
+ * that is not drawn.
+ */
+function CommentCardView(props: CommentCardProps) {
+    const isGone = useDeletedContentStore(
+        (s) => s.comments[props.comment.id] === true,
+    );
+    if (isGone) return null;
+    return <CommentCardBody {...props} />;
+}
 
 /**
  * One control, and the number beside it when there is one. The post card's

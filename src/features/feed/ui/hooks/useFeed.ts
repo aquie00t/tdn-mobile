@@ -199,10 +199,6 @@ export function useFeed(
         );
     }, []);
 
-    const removePost = useCallback((postId: string) => {
-        setPosts((prev) => prev.filter((post) => post.id !== postId));
-    }, []);
-
     const retry = useCallback(() => {
         void fetchPosts(lastFetchParamsRef.current);
     }, [fetchPosts]);
@@ -225,10 +221,7 @@ export function useFeed(
         loadMore,
         retry,
         retryLoadMore,
-        // `addPost` waits for composing (PR 11) and `removePost` for
-        // deletion; the other two are in use.
         addPost,
         replacePost,
-        removePost,
     };
 }

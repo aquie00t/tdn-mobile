@@ -74,6 +74,16 @@ function isApiErrorResponse(err: unknown): err is ApiErrorResponse {
     );
 }
 
+/**
+ * Whether the server answered that the thing is not there.
+ *
+ * For a delete that is the outcome asked for, reached another way — deleted
+ * from another device, or by a cascade — and not a failure to roll back.
+ */
+export function isNotFound(err: unknown): boolean {
+    return isApiErrorResponse(err) && err.status === 404;
+}
+
 export const getErrorMessage = (err: unknown): string => {
     if (isNetworkError(err)) {
         return err.message === "Request timed out"

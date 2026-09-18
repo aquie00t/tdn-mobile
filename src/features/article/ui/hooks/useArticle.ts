@@ -78,5 +78,18 @@ export function useArticle(slug: string) {
         setArticle((held) => (held ? { ...held, ...changes } : held));
     }, []);
 
-    return { article, isLoading, error, notFound, retry, patch };
+    return {
+        article,
+        isLoading,
+        error,
+        notFound,
+        retry,
+        /**
+         * Reads it again without the spinner — for coming back from the
+         * editor, where the page on screen is the one to keep until the new
+         * one arrives.
+         */
+        reload: load,
+        patch,
+    };
 }

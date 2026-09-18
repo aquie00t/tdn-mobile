@@ -74,3 +74,46 @@ export interface GetArticlesParams {
     categories?: ArticleCategory[];
     followedOnly?: boolean;
 }
+
+/**
+ * What `POST /articles` takes. It always creates a **draft**; nothing is
+ * readable by anybody else until `POST /articles/:id/publish` runs.
+ *
+ * Validation failures come back as a bare 400 naming no field, so every limit
+ * is mirrored in `domain/draft.ts` and checked before this is sent.
+ */
+export interface CreateArticleBody {
+    title: string;
+    body: string;
+    excerpt?: string;
+    coverImageKey?: string;
+    coverImageAlt?: string;
+    tags?: string[];
+    categories?: ArticleCategory[];
+}
+
+/**
+ * What `PATCH /articles/:id` takes.
+ *
+ * **`null` and `undefined` mean different things here.** An omitted field is
+ * left alone; `null` on one of the three nullable ones erases it. Collapsing
+ * the two would make removing a cover impossible.
+ */
+export interface UpdateArticleBody {
+    title?: string;
+    body?: string;
+    excerpt?: string | null;
+    coverImageKey?: string | null;
+    coverImageAlt?: string | null;
+    tags?: string[];
+    categories?: ArticleCategory[];
+}
+
+/**
+ * What `POST /articles/cover` answers. The **key** is what an article carries;
+ * the URL is only for showing the image before the article is saved.
+ */
+export interface CoverUploadResponse {
+    coverImageKey: string;
+    coverImageUrl: string;
+}

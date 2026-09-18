@@ -122,6 +122,10 @@ const en = {
     "editor.statusPublished": "Published",
     "editor.statusArchived": "Archived",
     "editor.leaveWarning": "You have unsaved changes.",
+    "editor.leaveBody":
+        "This draft cannot be saved yet, so leaving now loses what you have written.",
+    "editor.keepWriting": "Keep writing",
+    "editor.discard": "Discard",
 
     "post.translate": "Translate post",
     "post.translating": "Translating...",
@@ -896,6 +900,10 @@ const tr: Record<TranslationKey, string> = {
     "editor.statusPublished": "Yayında",
     "editor.statusArchived": "Arşiv",
     "editor.leaveWarning": "Kaydedilmemiş değişikliklerin var.",
+    "editor.leaveBody":
+        "Bu taslak henüz kaydedilemiyor; şimdi çıkarsan yazdıkların kaybolur.",
+    "editor.keepWriting": "Yazmaya devam et",
+    "editor.discard": "Vazgeç",
 
     "post.translate": "Gönderiyi çevir",
     "post.translating": "Çeviriliyor...",

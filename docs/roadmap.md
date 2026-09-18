@@ -424,13 +424,199 @@ because nothing on this client could reach a draft once it was closed:
 
 ---
 
+## Phase 3 — Parity, and what a release needs
+
+PRs 1–29 were the plan. This section lists what that plan left out. It was
+found by setting this client beside `tdn-client` screen by screen, and by
+collecting the "not in it" lines of the PRs that did land. The order follows
+the same rules: each step merges into a working app, and the things a reader
+would miss first come first.
+
+**Numbering.** The steps are numbered **3.1–3.7**, not "PR 30" onwards. The
+plan's numbers never matched GitHub's (plan PR 28 is GitHub #34), and past 29
+they would collide with pull requests that already exist. Anything that
+refers to GitHub is written as `#N`.
+
+### Loose ends of Phase 2
+
+Three things finished the phases above rather than starting new work:
+
+- **Comments under an article (#37, merged).** The reading screen takes a
+  `renderComments` slot, and the route fills it with `CommentList`, the same
+  arrangement as the post detail screen. A draft has no thread. An archived
+  article keeps its thread read-only, because the server refuses anything new.
+- **Saved articles (#38, open when this was written).** The bookmarks endpoint
+  has answered articles all along. The saved screen draws them as a third tab.
+- **A blue fill that holds white (#39, open when this was written).** The
+  accent colours were already ported. What was wrong was using `accent` as a
+  surface: white on the dark theme's accent is 2.5:1. `accent-fill` is one blue
+  in both themes and holds white at 5.2:1.
+
+### 3.1 — Deleting your own post and comment
+
+The web has both (`DELETE /posts/:id`, `DELETE /comments/:id`). This client
+has neither, and PR 23 already had to work around the gap: "report and delete
+are mutually exclusive on a card" became "the report control appears only on
+somebody else's". The delete control now takes the other half of that
+condition.
+
+**Deleting a post deletes every post that quoted it.** `quotedPost` is
+`onDelete: Cascade` in `post.prisma`, so other people's quotes go with it and
+no tombstone is left. That changes two things:
+- **The confirmation has to say so** when `quoteCount` is above zero. "Delete
+  this post?" does not warn anyone that other people's posts go too.
+- **Removing the row is not enough.** `removePost` in `useFeed` and
+  `useBookmarks`, written for this step and never called yet, drops only the
+  post itself. Every loaded list also has to drop the posts whose
+  `quotedPost.id` is the deleted one. Left in place, they open to a 404.
+
+Behind a confirmation, because nothing brings a post back. After that it is
+optimistic: the rows go at once and come back in `catch`.
+
+### 3.2 — Editing your profile
+
+The web's `EditProfileModal`: name, bio, location, links (`socials`), avatar
+and banner. The two images go through `profiles/me/avatar` and
+`profiles/me/banner`, two more upload channels that `media-errors.ts` already
+names. So the moderation verdicts, the one-shot 503 retry and
+`clearsSelection` come with them.
+
+A screen, not a modal: two image pickers, a multi-line bio and a list of links
+over the keyboard are more than a panel over the profile can hold. Not
+optimistic either, for the reason PR 21 gives about the account forms: the
+server judges a bio and a picture, it does not simply record them.
+
+### 3.3 — Who quoted a post
+
+The web's `/posts/:id/quotes` and its `useQuotes`, reached the way the web
+reaches them.
+
+**On this client the quote icon and its count are one control, and it opens
+the composer.** It is the only way to quote or repost. The web draws two
+controls side by side: the icon opens the composer, and the count opens the
+list. This step splits them the same way. The count becomes its own control,
+shown only above zero, and quoting stays on the icon.
+
+The list is `PostCard`s, which already know how to draw a quote.
+
+### 3.4 — Translating a post or a comment
+
+The web offers "Translate" under a post or comment written in a language other
+than the reader's. It detects the language on the client with `franc-min`,
+then calls `POST /translate` with the reader's language. The detection is
+worth porting as it is: without it, the control appears under every row,
+including the ones already in the reader's language. The translation replaces
+the text in place, with a way back to the original.
+
+**Check first:** whether `franc-min` loads under Hermes. It is pure
+JavaScript, but it ships as ESM only.
+
+### 3.5 — Pull to refresh where it is missing
+
+The feed and the inbox have pull to refresh; nothing else does. That includes
+the message thread (the `refresh` there belongs to a pending attachment's
+placeholder), post detail and comment threads, the article list, both profile
+tabs, the saved list, notifications, Explore, the tag view and the follow
+lists.
+
+Revision-driven re-reads (#36) cover the editor's own writes, but not what
+anybody else wrote. The gesture is what a phone user reaches for, and a list
+that ignores it reads as frozen.
+
+One helper for `RefreshControl`. Its `tintColor` and `colors` take colour
+*values*, the same problem the tab bar and the header avoided by drawing their
+own controls instead of configuring the native ones. The spinner cannot be
+drawn by hand, so the value is read from the theme once, in one place.
+
+### 3.6 — Links that open in the app
+
+A post shared from a phone is a `developernetwork.net/post/…` link
+(`web-url.ts`), and today it opens the browser even on a phone that has the
+app. Android App Links need two things:
+- an `intentFilters` entry with `autoVerify` in `app.config.ts`;
+- `/.well-known/assetlinks.json` on the web host, carrying the release
+  signing key's fingerprint.
+
+The routes already match the web's (`/post/:id`, `/articles/:slug`,
+`/profile/:username`, `/comments/:id`). Most of the work is the mapping and
+the edge cases: a link to a draft, and a link opened while signed out, which
+should survive the sign-in wall rather than be dropped by it.
+
+**Deployment dependency:** the asset links file on the web host. **Cannot be
+verified in Expo Go**, which registers no intent filters; it needs a dev
+build.
+
+### 3.7 — Legal pages and contact
+
+Privacy, terms and contact live on the web (`/privacy`, `/terms`,
+`/contact`). The Play listing requires a privacy policy reachable *from
+inside the app*, so this step blocks the store entry as well as closing a gap
+with the web. They open in the in-app browser; this client does not render
+them itself. They are linked from two places:
+- **The first sign-in screen.** `IdentifierScreen` already writes "terms" and
+  "privacy" as plain text, and it is the one screen somebody without an
+  account can reach.
+- **Settings**, for everybody else.
+
+---
+
+### Not PRs: before the first release
+
+**A build that is not Expo Go.** Five things have never run on a device,
+because Expo Go cannot run them:
+- OAuth's return to `tdn://oauth` (PR 5).
+- A real push token (PR 16).
+- A tap on a notification (PR 16).
+- The update gate against a real `versionCode` (PR 18).
+- App Links (3.6).
+
+That needs a JDK and the Android SDK on the build machine, or an EAS cloud
+build. Everything marked "not tried on a device" in the PR bodies should be
+walked through once on that build.
+
+**Moderation, once the API has it back.** It was switched off on the API when
+PR 8 was written, so no post has ever arrived as `isSensitive` or
+`mediaPending`. The following have all been written and none has been seen:
+- the sensitive cover, its tap to reveal, and its return when scrolled back;
+- `PendingMedia`'s polling and its five-minute ceiling;
+- `QuotedPostCard` passing the *quoted* post's own flag.
+
+**Three API gaps this client works around:**
+- **Changing a username or a password has no rules on the server.** Both
+  schemas are a bare `Type.String()`, missing the 3–30 characters,
+  `[a-zA-Z0-9._]` and minimum-8 rules that registration applies.
+  `shared/data/account-rules.ts` enforces them here; the web enforces nothing.
+- **`/users/me` does not say whether the account has a password.** So deleting
+  an OAuth-only account answers "The user cannot be deleted." Exposing
+  `hasPassword` would let Settings offer the right path.
+- **`assertAccountActive` checks `bannedAt` but not `deletedAt`.** An access
+  token stays good after its account is deleted. `useDeleteAccount` signs out
+  on its own and depends on that ordering, so fixing the API means revisiting
+  it.
+
+**The deployment table below**, which nothing in this repository can check.
+
+### Later, deliberately
+
+- **iOS.** `core/platform/` is the seam: the work is adapters beside the
+  Android ones, plus Apple sign-in, which the App Store requires once Google
+  and GitHub sign-in are offered.
+- **Linking and unlinking a sign-in provider** on an existing account (left
+  out of PR 5).
+- **Pictures inside an article**, and **keeping a draft on the device** until
+  it can be sent (left out of #35).
+
+---
+
 ## Deployment dependencies, collected
 
-Four things live in the API's environment and block a PR each:
+Three things live in the API's environment and one on the web host, and each
+blocks a step; the fifth is the store entry the release itself needs:
 
 | Needed by | Variable |
 | --- | --- |
 | PR 5 | `OAUTH_NATIVE_REDIRECT_ALLOWLIST` — exact `tdn://` target |
 | PR 16 | `PUSH_ENABLED`, `EXPO_ACCESS_TOKEN` |
 | PR 18 | `MOBILE_MIN_SUPPORTED_BUILD`, `MOBILE_LATEST_BUILD`, `MOBILE_STORE_URL_ANDROID` |
+| 3.6 | `/.well-known/assetlinks.json` on the web host, with the release key's fingerprint |
 | Release | A Play Console entry, before `GooglePlayBillingService` can replace the stub |

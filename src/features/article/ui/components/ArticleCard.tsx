@@ -161,7 +161,7 @@ function ArticleCardView({ article: fromServer }: ArticleCardProps) {
                                 size={15}
                                 className={
                                     article.isLiked
-                                        ? "text-danger"
+                                        ? "text-like"
                                         : "text-ink/40"
                                 }
                             />

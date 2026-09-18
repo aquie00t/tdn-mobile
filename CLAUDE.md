@@ -280,9 +280,12 @@ twice. It defaults to **dark**, not the system setting, because the app shipped
 dark and following the OS would repaint it white for everyone whose phone is
 set light.
 
-Not yet ported: the accent ramp (`red-*`, `blue-*`, `pink-*`) that
-`tdn-client` redefines under its light theme, because the shades that glow on
-black fail contrast on white.
+The accents carry the web's light-theme shades — the ones `tdn-client`
+redefines under its light theme because the shades that glow on black fail on
+white — so `danger`, `success`, `accent` and `like` each swap. A blue that
+carries a label is `accent-fill`, not `accent`: the dark theme's accent is
+tuned to be read on black, and white on it is 2.5:1. `accent-fill` is one
+blue in both themes and holds white at 5.2:1.
 
 ## Testing
 

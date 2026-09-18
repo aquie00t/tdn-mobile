@@ -26,12 +26,23 @@ export interface RichTextProps extends TextProps {
  * `splitRichText` decides what the runs are and why a tag is left alone; this
  * only draws them.
  *
- * Nested `Text` is the one place React Native does inherit — a child takes its
- * parent's size and colour — so the bold, the link and the mention ride on
- * whatever the caller set here rather than each carrying their own.
+ * Nested `Text` is the one place React Native inherits — a child takes its
+ * parent's size and colour — but only a bare one. Ours always sets a colour of
+ * its own, so each run is handed the caller's tone explicitly: the bold keeps
+ * it, and links and handles take `accent`, or keep it underlined on a blue
+ * fill where `accent` would vanish.
  */
 export function RichText({ text, mentions, ...props }: RichTextProps) {
     const router = useRouter();
+
+    /*
+     * Links and handles are blue — except on a blue fill, your own message
+     * bubble, where blue on blue is a link nobody can see. There they keep
+     * the text's own colour and are marked by an underline instead.
+     */
+    const onFill = props.tone === "onFill";
+    const linkTone = onFill ? "onFill" : "accent";
+    const linkMark = onFill ? "underline" : undefined;
 
     // A regex pass over the body on every render is small and never free; a
     // feed redraws its rows for reasons that have nothing to do with the words
@@ -43,7 +54,18 @@ export function RichText({ text, mentions, ...props }: RichTextProps) {
             {runs.map((run) => {
                 if (run.kind === "bold") {
                     return (
-                        <Text key={run.start} className="font-bold">
+                        /*
+                         * The body's own tone, passed on by hand. `Text`
+                         * always sets a colour, so a nested one does not
+                         * inherit its parent's the way a bare React Native
+                         * `Text` would — left to default, a bold word in your
+                         * own blue bubble was `ink` among white.
+                         */
+                        <Text
+                            key={run.start}
+                            tone={props.tone}
+                            className="font-bold"
+                        >
                             {run.value}
                         </Text>
                     );
@@ -53,7 +75,8 @@ export function RichText({ text, mentions, ...props }: RichTextProps) {
                     return (
                         <Text
                             key={run.start}
-                            tone="accent"
+                            tone={linkTone}
+                            className={linkMark}
                             // Nested inside a card that opens on press. React
                             // Native gives a tap to the innermost `Text` with a
                             // handler, so the link wins over the row without a
@@ -69,8 +92,12 @@ export function RichText({ text, mentions, ...props }: RichTextProps) {
                     return (
                         <Text
                             key={run.start}
-                            tone="accent"
-                            className="font-medium"
+                            tone={linkTone}
+                            className={
+                                linkMark
+                                    ? `font-medium ${linkMark}`
+                                    : "font-medium"
+                            }
                             accessibilityRole="link"
                             // The handle as written is what is drawn; where it
                             // goes is the account's current one.

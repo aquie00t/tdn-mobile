@@ -108,7 +108,7 @@ function ConversationRowView({ conversation }: ConversationRowProps) {
             </View>
 
             {badge && (
-                <View className="min-w-[20px] shrink-0 items-center justify-center rounded-full bg-accent px-1.5 py-0.5">
+                <View className="min-w-[20px] shrink-0 items-center justify-center rounded-full bg-accent-fill px-1.5 py-0.5">
                     <Text
                         tone="onFill"
                         className="text-[11px] font-bold leading-none"

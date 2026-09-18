@@ -85,7 +85,7 @@ export function TabBarButton({
                 )}
 
                 {count && (
-                    <View className="absolute -right-1.5 -top-1 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 py-0.5">
+                    <View className="absolute -right-1.5 -top-1 min-w-[16px] items-center justify-center rounded-full bg-accent-fill px-1 py-0.5">
                         <Text
                             tone="onFill"
                             className="text-[10px] font-bold leading-none"

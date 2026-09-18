@@ -21,6 +21,14 @@
  * migrating, so `danger`, `success` and `accent` are roles from the start,
  * carrying the web's values on both sides.
  *
+ * `accent-fill` is `accent` as a *surface*, and it does not swap. `accent`
+ * is tuned to be read on the ground — the light blue that glows on black —
+ * and that is exactly what makes it a poor thing to write on: white over the
+ * dark theme's accent is 2.5:1. So a filled blue that carries a label (your
+ * own message bubble, an unread count) takes this instead, one blue in both
+ * themes, which holds white at 5.2:1. The web fills with `blue-500` and gets
+ * 3.7:1 on its dark theme; this is the shade that clears the 4.5:1 floor.
+ *
  * `like` is the one role named for a feature rather than a meaning, and it is
  * the exception that proves the rest: the web tints a liked heart `pink-500`
  * and that pink means exactly one thing in the product. The alternatives were
@@ -52,6 +60,7 @@ module.exports = {
                 success: "rgb(var(--color-success) / <alpha-value>)",
                 accent: "rgb(var(--color-accent) / <alpha-value>)",
                 like: "rgb(var(--color-like) / <alpha-value>)",
+                "accent-fill": "rgb(var(--color-accent-fill) / <alpha-value>)",
                 scrim: "rgb(var(--color-scrim) / <alpha-value>)",
                 "on-fill": "rgb(var(--color-on-fill) / <alpha-value>)",
             },

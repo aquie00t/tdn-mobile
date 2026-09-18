@@ -46,6 +46,7 @@
         /* Do not swap — see tailwind.config.js. */
         --color-scrim: 0 0 0;
         --color-on-fill: 255 255 255;
+        --color-accent-fill: 37 99 235;
     }
 
     .dark:root {
@@ -63,5 +64,6 @@
 
         --color-scrim: 0 0 0;
         --color-on-fill: 255 255 255;
+        --color-accent-fill: 37 99 235;
     }
 }

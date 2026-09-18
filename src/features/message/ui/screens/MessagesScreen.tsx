@@ -359,7 +359,7 @@ function SegmentButton({
                 {label}
             </Text>
             {badge && (
-                <View className="min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 py-0.5">
+                <View className="min-w-[18px] items-center justify-center rounded-full bg-accent-fill px-1.5 py-0.5">
                     <Text
                         tone="onFill"
                         className="text-[10px] font-bold leading-none"

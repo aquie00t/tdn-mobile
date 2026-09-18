@@ -2,6 +2,8 @@ import { FlatList, Pressable, View } from "react-native";
 import { useCallback, useState } from "react";
 import type { ReactNode } from "react";
 
+import { ArticleCard } from "@features/article/ui/components/ArticleCard";
+import type { ArticleSummary } from "@features/article/data/article.types";
 import { BookmarkIcon } from "@shared/ui/icons/lucide";
 import { Button } from "@shared/ui/Button";
 import type { Comment } from "@features/comment/data/comment.types";
@@ -19,27 +21,24 @@ import { cn } from "@shared/ui/cn";
 import { useBookmarks } from "@shared/hooks/useBookmarks";
 import { useI18n } from "@shared/hooks/useI18n";
 
-type SavedTab = "posts" | "comments";
+type SavedTab = "posts" | "comments" | "articles";
 
 const postKey = (post: Post) => post.id;
 const commentKey = (comment: Comment) => comment.id;
+const articleKey = (article: ArticleSummary) => article.id;
 
 /**
  * Everything the reader has saved.
  *
  * **Composed in the route**, like the profile screen and the tag view: one
- * endpoint answers posts and comments together, their cards belong to two
- * features, and a feature may not import another. The paging is generic and
+ * endpoint answers posts, comments and articles together, their cards belong
+ * to three features, and a feature may not import another. The paging is generic and
  * lives in `shared/`; the types it is instantiated with are the ones this file
  * already has to know.
  *
  * Inside the profile tab's stack rather than in the bar: five tabs is what a
  * 360px phone holds, and a saved list is something reached from an account
  * rather than switched to — which is also where the web keeps it.
- *
- * Articles are in the answer and are not drawn. There are no article screens
- * in this app yet; the third tab lands with them, and its copy is already
- * written.
  */
 export default function SavedRoute() {
     const { t } = useI18n();
@@ -48,19 +47,19 @@ export default function SavedRoute() {
     const {
         posts,
         comments,
+        articles,
         isLoading,
         isLoadingMore,
         error,
         loadMoreError,
         hasMorePosts,
         hasMoreComments,
+        hasMoreArticles,
         retry,
         retryLoadMore,
         loadMore,
         replacePost,
-    } = useBookmarks<Post, Comment>();
-
-    const isPosts = tab === "posts";
+    } = useBookmarks<Post, Comment, ArticleSummary>();
 
     const renderPost = useCallback(
         ({ item }: { item: Post }) => (
@@ -81,8 +80,19 @@ export default function SavedRoute() {
     );
 
     /*
+     * The same card the feed's Articles tab draws, so unsaving here reaches
+     * the reading screen and the list through the article overlay — and, like
+     * a post, the row stays until the list is next opened, so an accidental
+     * tap has something to tap back.
+     */
+    const renderArticle = useCallback(
+        ({ item }: { item: ArticleSummary }) => <ArticleCard article={item} />,
+        [],
+    );
+
+    /*
      * Only the list being looked at asks for more, and only while it can still
-     * grow. The endpoint pages both kinds together, so a request from a
+     * grow. The endpoint pages every kind together, so a request from a
      * finished list lands entirely in the tab nobody is looking at — with a
      * spinner under this one to say so.
      *
@@ -98,10 +108,14 @@ export default function SavedRoute() {
         if (hasMoreComments) void loadMore();
     }, [hasMoreComments, loadMore]);
 
+    const reachArticlesEnd = useCallback(() => {
+        if (hasMoreArticles) void loadMore();
+    }, [hasMoreArticles, loadMore]);
+
     /**
      * One list's own footer.
      *
-     * Per list rather than shared. The request carries a page of both kinds,
+     * Per list rather than shared. The request carries a page of every kind,
      * so the only honest place to report that it is out — or that it failed —
      * is under a list still expecting rows: a spinner under a finished list
      * promises rows that will never arrive, and a failure about posts sitting
@@ -152,7 +166,8 @@ export default function SavedRoute() {
      * under a list of saved comments would be telling somebody they have
      * nothing while they are looking at it.
      */
-    const hasNothing = posts.length === 0 && comments.length === 0;
+    const hasNothing =
+        posts.length === 0 && comments.length === 0 && articles.length === 0;
 
     return (
         <Screen edges={{ top: true, bottom: false }}>
@@ -167,13 +182,18 @@ export default function SavedRoute() {
             <View className="flex-row border-b border-ink/10">
                 <TabButton
                     label={t("bookmarks.tabPosts")}
-                    isActive={isPosts}
+                    isActive={tab === "posts"}
                     onPress={() => setTab("posts")}
                 />
                 <TabButton
                     label={t("bookmarks.tabComments")}
-                    isActive={!isPosts}
+                    isActive={tab === "comments"}
                     onPress={() => setTab("comments")}
+                />
+                <TabButton
+                    label={t("bookmarks.tabArticles")}
+                    isActive={tab === "articles"}
+                    onPress={() => setTab("articles")}
                 />
             </View>
 
@@ -193,10 +213,10 @@ export default function SavedRoute() {
                 />
             ) : (
                 /*
-                 * Both lists stay mounted and one is hidden, rather than a
-                 * ternary that unmounts the other. A `FlatList` that is
+                 * Every list stays mounted and the others are hidden, rather
+                 * than a ternary that unmounts them. A `FlatList` that is
                  * unmounted loses its scroll position, so a reader five pages
-                 * into their saved posts who glances at the comments tab comes
+                 * into their saved posts who glances at another tab comes
                  * back to the top of a hundred rows — and because the rows are
                  * still in state, nothing reloads to explain the jump.
                  *
@@ -205,12 +225,14 @@ export default function SavedRoute() {
                  * definition, so it would ask for the next page immediately.
                  */
                 <>
-                    <ListPane isVisible={isPosts}>
+                    <ListPane isVisible={tab === "posts"}>
                         <FlatList
                             data={posts}
                             keyExtractor={postKey}
                             renderItem={renderPost}
-                            onEndReached={isPosts ? reachPostsEnd : undefined}
+                            onEndReached={
+                                tab === "posts" ? reachPostsEnd : undefined
+                            }
                             onEndReachedThreshold={0.5}
                             // The same two as every other list here: the
                             // defaults keep ten screenfuls either side
@@ -225,13 +247,15 @@ export default function SavedRoute() {
                         />
                     </ListPane>
 
-                    <ListPane isVisible={!isPosts}>
+                    <ListPane isVisible={tab === "comments"}>
                         <FlatList
                             data={comments}
                             keyExtractor={commentKey}
                             renderItem={renderComment}
                             onEndReached={
-                                isPosts ? undefined : reachCommentsEnd
+                                tab === "comments"
+                                    ? reachCommentsEnd
+                                    : undefined
                             }
                             onEndReachedThreshold={0.5}
                             windowSize={7}
@@ -242,6 +266,28 @@ export default function SavedRoute() {
                                 />
                             }
                             ListFooterComponent={footerFor(hasMoreComments)}
+                        />
+                    </ListPane>
+
+                    <ListPane isVisible={tab === "articles"}>
+                        <FlatList
+                            data={articles}
+                            keyExtractor={articleKey}
+                            renderItem={renderArticle}
+                            onEndReached={
+                                tab === "articles"
+                                    ? reachArticlesEnd
+                                    : undefined
+                            }
+                            onEndReachedThreshold={0.5}
+                            windowSize={7}
+                            maxToRenderPerBatch={5}
+                            ListEmptyComponent={
+                                <EmptyState
+                                    title={t("bookmarks.emptyArticles")}
+                                />
+                            }
+                            ListFooterComponent={footerFor(hasMoreArticles)}
                         />
                     </ListPane>
                 </>
@@ -270,10 +316,10 @@ interface TabButtonProps {
 }
 
 /**
- * One of the two strip buttons.
+ * One of the strip's buttons.
  *
  * The underline is drawn inset from both edges, as the web's is: a rule that
- * runs the full width of the button reads as a border between the two rather
+ * runs the full width of the button reads as a border between them rather
  * than as a mark on one.
  */
 function TabButton({ label, isActive, onPress }: TabButtonProps) {

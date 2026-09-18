@@ -252,6 +252,7 @@ const en = {
      */
     "bookmarks.emptyPosts": "No saved posts yet",
     "bookmarks.emptyComments": "No saved comments yet",
+    "bookmarks.emptyArticles": "No saved articles yet",
     "bookmarks.emptyTitle": "Save posts for later",
     "bookmarks.emptyBody":
         "Don't let the good ones get away! Bookmark posts to easily find them again in the future.",
@@ -1014,6 +1015,7 @@ const tr: Record<TranslationKey, string> = {
     "bookmarks.tabArticles": "Makaleler",
     "bookmarks.emptyPosts": "Henüz kaydedilmiş gönderi yok",
     "bookmarks.emptyComments": "Henüz kaydedilmiş yorum yok",
+    "bookmarks.emptyArticles": "Henüz kaydedilmiş makale yok",
     "bookmarks.emptyTitle": "Gönderileri sonra için kaydet",
     "bookmarks.emptyBody":
         "Kaçırma! Gönderileri daha sonra kolayca bulmak için kaydet.",

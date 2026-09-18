@@ -32,11 +32,14 @@ interface Identified {
 export function useBookmarks<
     TPost extends Identified,
     TComment extends Identified,
+    TArticle extends Identified,
 >() {
     const [posts, setPosts] = useState<TPost[]>([]);
     const [comments, setComments] = useState<TComment[]>([]);
+    const [articles, setArticles] = useState<TArticle[]>([]);
     const [hasMorePosts, setHasMorePosts] = useState(false);
     const [hasMoreComments, setHasMoreComments] = useState(false);
+    const [hasMoreArticles, setHasMoreArticles] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -77,21 +80,27 @@ export function useBookmarks<
         const run = ++generation.current;
 
         return bookmarksApi
-            .getBookmarks<TPost, TComment>({
+            .getBookmarks<TPost, TComment, TArticle>({
                 page: 1,
                 limit: BOOKMARKS_PAGE_SIZE,
             })
             .then((page) => {
                 if (generation.current !== run) return;
 
+                // `?? []` because the field arrived in a later API version,
+                // and a server that predates it answers without it at all.
+                const pageArticles = page.articles ?? [];
+
                 pageRef.current = 1;
                 setLoadMoreError(null);
                 setPosts(page.posts);
                 setComments(page.comments);
+                setArticles(pageArticles);
                 setHasMorePosts(page.posts.length === BOOKMARKS_PAGE_SIZE);
                 setHasMoreComments(
                     page.comments.length === BOOKMARKS_PAGE_SIZE,
                 );
+                setHasMoreArticles(pageArticles.length === BOOKMARKS_PAGE_SIZE);
                 setError(null);
             })
             .catch((err: unknown) => {
@@ -99,8 +108,10 @@ export function useBookmarks<
 
                 setPosts([]);
                 setComments([]);
+                setArticles([]);
                 setHasMorePosts(false);
                 setHasMoreComments(false);
+                setHasMoreArticles(false);
                 setError(getErrorMessage(err));
             })
             .finally(() => {
@@ -132,7 +143,10 @@ export function useBookmarks<
      * where that list can still grow.
      */
     const loadMore = useCallback((): Promise<void> => {
-        if (inFlight.current || (!hasMorePosts && !hasMoreComments)) {
+        if (
+            inFlight.current ||
+            (!hasMorePosts && !hasMoreComments && !hasMoreArticles)
+        ) {
             return Promise.resolve();
         }
 
@@ -144,20 +158,24 @@ export function useBookmarks<
         setIsLoadingMore(true);
 
         return bookmarksApi
-            .getBookmarks<TPost, TComment>({
+            .getBookmarks<TPost, TComment, TArticle>({
                 page: next,
                 limit: BOOKMARKS_PAGE_SIZE,
             })
             .then((page) => {
                 if (generation.current !== run) return;
 
+                const pageArticles = page.articles ?? [];
+
                 pageRef.current = next;
                 setPosts((previous) => [...previous, ...page.posts]);
                 setComments((previous) => [...previous, ...page.comments]);
+                setArticles((previous) => [...previous, ...pageArticles]);
                 setHasMorePosts(page.posts.length === BOOKMARKS_PAGE_SIZE);
                 setHasMoreComments(
                     page.comments.length === BOOKMARKS_PAGE_SIZE,
                 );
+                setHasMoreArticles(pageArticles.length === BOOKMARKS_PAGE_SIZE);
                 // A page that failed and was tried again leaves its message
                 // behind otherwise: the rows arrive, and the reader is still
                 // being told they did not.
@@ -177,7 +195,7 @@ export function useBookmarks<
                 inFlight.current = false;
                 setIsLoadingMore(false);
             });
-    }, [hasMorePosts, hasMoreComments]);
+    }, [hasMorePosts, hasMoreComments, hasMoreArticles]);
 
     /** Pressing the message is what tries the page again. */
     const retryLoadMore = useCallback(() => {
@@ -212,12 +230,14 @@ export function useBookmarks<
     return {
         posts,
         comments,
+        articles,
         isLoading,
         isLoadingMore,
         error,
         loadMoreError,
         hasMorePosts,
         hasMoreComments,
+        hasMoreArticles,
         retry,
         retryLoadMore,
         loadMore,

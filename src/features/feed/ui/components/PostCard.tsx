@@ -16,7 +16,12 @@ import type { Post } from "../../data/feed.types";
 import { PostMedia } from "@shared/ui/PostMedia";
 import { RichText } from "@shared/ui/RichText";
 import { QuotedPostCard } from "./QuotedPostCard";
+import { DeleteButton } from "@shared/ui/DeleteButton";
 import { ReportButton } from "@shared/ui/ReportButton";
+import {
+    isPostGone,
+    useDeletedContentStore,
+} from "@shared/store/deleted-content.store";
 import { SensitiveMedia } from "@shared/ui/SensitiveMedia";
 import { Text } from "@shared/ui/Text";
 import { isOwnContent } from "@shared/utils/is-own-content";
@@ -84,7 +89,7 @@ function formatPostDate(iso: string, locale: string): string {
  * The body goes through `RichText` with the post's `mentions`, so a handle the
  * API resolved is a link to that profile and one it did not stays text.
  */
-function PostCardView({
+function PostCardBody({
     onUpdated,
     isPressable = true,
     hasDivider = true,
@@ -124,15 +129,28 @@ function PostCardView({
      * report your own words.
      */
     const reportTarget = repostedOriginal ?? post;
-    const isOwn = isOwnContent(reportTarget.author, viewerId);
+    /*
+     * Delete follows the post itself, not the report target: a repost you
+     * made of somebody else's post is yours to take back, and deleting it
+     * leaves theirs alone. The report control goes whenever the delete is
+     * there — they are never on the same card.
+     */
+    const canDelete = isOwnContent(post.author, viewerId);
+    const canReport =
+        !canDelete && !isOwnContent(reportTarget.author, viewerId);
     const date = formatPostDate(post.createdAt, locale);
     const { refresh, isRefreshing } = usePendingMedia({
         postId: post.id,
         mediaPending: post.mediaPending,
         onUpdated,
     });
-    const { handleLike, isLikeLoading, handleBookmark, handleShare } =
-        usePostActions({ post });
+    const {
+        handleLike,
+        isLikeLoading,
+        handleBookmark,
+        handleShare,
+        handleDelete,
+    } = usePostActions({ post });
 
     const Row = isPressable ? Pressable : View;
 
@@ -347,11 +365,33 @@ function PostCardView({
                     />
 
                     {/*
-                     * Where delete would sit on your own post, and never
-                     * both: you report what is not yours. The API refuses a
-                     * report of your own content, so the card decides.
+                     * Delete on your own post, report on anybody else's, and
+                     * never both: the API refuses a report of your own
+                     * content, so the card decides.
                      */}
-                    {!isOwn && (
+                    {canDelete && (
+                        <View className="ml-auto">
+                            <DeleteButton
+                                title={t("post.deleteTitle")}
+                                body={t("post.deleteBody")}
+                                /*
+                                 * The server deletes every quote of the post
+                                 * with it, other people's included, and
+                                 * leaves nothing in their place. Said before
+                                 * it happens, because it is not only yours.
+                                 */
+                                warning={
+                                    post.quoteCount > 0
+                                        ? t("post.deleteQuotes", {
+                                              n: post.quoteCount,
+                                          })
+                                        : null
+                                }
+                                onConfirm={() => void handleDelete()}
+                            />
+                        </View>
+                    )}
+                    {canReport && (
                         <View className="ml-auto">
                             <ReportButton
                                 targetKind="POST"
@@ -374,6 +414,21 @@ function PostCardView({
  * every visible row along with it.
  */
 export const PostCard = memo(PostCardView);
+
+/**
+ * Nothing at all once the post is deleted — or once the post it quotes is,
+ * which the server deletes with it. Every list the post is in draws it
+ * through here, so a delete empties the row everywhere at once; see
+ * `deleted-content.store`.
+ *
+ * A separate component so the hooks in the body never run for a row that is
+ * not drawn, and are never skipped for one that is.
+ */
+function PostCardView(props: PostCardProps) {
+    const isGone = useDeletedContentStore((s) => isPostGone(props, s.posts));
+    if (isGone) return null;
+    return <PostCardBody {...props} />;
+}
 
 /**
  * A control, and the number beside it when there is one.

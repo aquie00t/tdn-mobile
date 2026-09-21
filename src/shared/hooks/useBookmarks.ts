@@ -204,17 +204,6 @@ export function useBookmarks<
     }, [loadMore]);
 
     /**
-     * A post deleted from its own card, gone from this list too.
-     *
-     * Nothing calls it yet: the card has no delete affordance until that PR
-     * lands, and `useFeed` carries the same pair for the same reason. It is
-     * here so the screen that gains one has somewhere to report it.
-     */
-    const removePost = useCallback((postId: string) => {
-        setPosts((previous) => previous.filter((post) => post.id !== postId));
-    }, []);
-
-    /**
      * A freshly read copy of one post, in place.
      *
      * Unsaving is deliberately **not** this: the card keeps its own row when
@@ -241,7 +230,6 @@ export function useBookmarks<
         retry,
         retryLoadMore,
         loadMore,
-        removePost,
         replacePost,
     };
 }

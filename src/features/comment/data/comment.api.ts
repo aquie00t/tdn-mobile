@@ -90,6 +90,14 @@ export const commentApi = {
         api.delete(`/comments/${commentId}/unsave`, { contentType: false }),
 
     /**
+     * Deletes your own comment, and its replies with it — `parent` is
+     * `onDelete: Cascade`. The server moves the parent's reply count and the
+     * post's comment count down by one; an article's count is derived.
+     */
+    deleteComment: (commentId: string): Promise<void> =>
+        api.delete(`/comments/${commentId}`, { contentType: false }),
+
+    /**
      * One comment, read on its own — the head of its own thread.
      *
      * `isPublic` for the reason the listings use it: a stale token must not

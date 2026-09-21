@@ -7,6 +7,8 @@ import { reportError } from "@shared/utils/report-error";
 import { shareLink } from "@shared/utils/share";
 import { useI18n } from "@shared/hooks/useI18n";
 import { usePostOverlayStore } from "../store/post-overlay.store";
+import { useDeletedContentStore } from "@shared/store/deleted-content.store";
+import { isNotFound } from "@shared/utils/error-handler";
 
 export interface UsePostActionsOptions {
     post: Post;
@@ -36,6 +38,8 @@ export function usePostActions({ post }: UsePostActionsOptions) {
 
     const [isLikeLoading, setIsLikeLoading] = useState(false);
     const [isBookmarkLoading, setIsBookmarkLoading] = useState(false);
+    const markDeleted = useDeletedContentStore((s) => s.markPost);
+    const unmarkDeleted = useDeletedContentStore((s) => s.unmarkPost);
 
     const handleLike = useCallback(async () => {
         if (isLikeLoading) return;
@@ -95,11 +99,33 @@ export function usePostActions({ post }: UsePostActionsOptions) {
         }
     }, [post.id, t]);
 
+    /**
+     * Deletes the post, optimistically. The confirmation is the card's.
+     *
+     * Marking it deleted is the whole optimistic step: every card showing it
+     * — or quoting it, which the server deletes too — draws nothing from that
+     * moment, on every screen. A failure unmarks it and the rows come back
+     * where they were. A 404 is the outcome asked for, reached some other
+     * way, and stays deleted.
+     */
+    const handleDelete = useCallback(async () => {
+        markDeleted(post.id);
+
+        try {
+            await feedApi.deletePost(post.id);
+        } catch (err) {
+            if (isNotFound(err)) return;
+            unmarkDeleted(post.id);
+            reportError("post.delete", err);
+        }
+    }, [post.id, markDeleted, unmarkDeleted]);
+
     return {
         handleLike,
         isLikeLoading,
         handleBookmark,
         isBookmarkLoading,
         handleShare,
+        handleDelete,
     };
 }

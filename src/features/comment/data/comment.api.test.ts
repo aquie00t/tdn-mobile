@@ -188,6 +188,7 @@ describe("like and save a comment", () => {
         ["unlikeComment", "DELETE", "/comments/c1/unlike"],
         ["saveComment", "POST", "/comments/c1/save"],
         ["unsaveComment", "DELETE", "/comments/c1/unsave"],
+        ["deleteComment", "DELETE", "/comments/c1"],
     ])("%s is %s %s", async (name, method, path) => {
         await setTokens({ accessToken: "fresh" });
         let seen: { method: string; path: string } | null = null;

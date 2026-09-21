@@ -6,10 +6,18 @@ import { commentUrl } from "@shared/utils/web-url";
 import { reportError } from "@shared/utils/report-error";
 import { shareLink } from "@shared/utils/share";
 import { useCommentOverlayStore } from "../store/comment-overlay.store";
+import { useDeletedContentStore } from "@shared/store/deleted-content.store";
+import { isNotFound } from "@shared/utils/error-handler";
 import { useI18n } from "@shared/hooks/useI18n";
 
 export interface UseCommentActionsOptions {
     comment: Comment;
+    /**
+     * Told once a delete has landed, so the screen above can move the count
+     * of whatever the comment hung off. After the server answers rather than
+     * with the optimistic step: a count is not worth a rollback of its own.
+     */
+    onDeleted?: (comment: Comment) => void;
 }
 
 /**
@@ -27,7 +35,10 @@ export interface UseCommentActionsOptions {
  * action behind a single unguarded tap is worse than one that is not there
  * yet.
  */
-export function useCommentActions({ comment }: UseCommentActionsOptions) {
+export function useCommentActions({
+    comment,
+    onDeleted,
+}: UseCommentActionsOptions) {
     const { t } = useI18n();
     const patch = useCommentOverlayStore((s) => s.patch);
 
@@ -90,11 +101,29 @@ export function useCommentActions({ comment }: UseCommentActionsOptions) {
         }
     }, [comment.id, t]);
 
+    const markDeleted = useDeletedContentStore((s) => s.markComment);
+    const unmarkDeleted = useDeletedContentStore((s) => s.unmarkComment);
+
+    /** As a post's: marked at once, unmarked on failure. */
+    const handleDelete = useCallback(async () => {
+        markDeleted(comment.id);
+
+        try {
+            await commentApi.deleteComment(comment.id);
+            onDeleted?.(comment);
+        } catch (err) {
+            if (isNotFound(err)) return;
+            unmarkDeleted(comment.id);
+            reportError("comment.delete", err);
+        }
+    }, [comment, markDeleted, unmarkDeleted, onDeleted]);
+
     return {
         handleLike,
         isLikeLoading,
         handleBookmark,
         isBookmarkLoading,
         handleShare,
+        handleDelete,
     };
 }

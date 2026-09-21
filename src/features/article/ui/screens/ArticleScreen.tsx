@@ -37,6 +37,11 @@ export interface ArticleCommentsSlot {
     /** Tell the screen a comment was added, so the count can move. */
     onCommentCreated: () => void;
     /**
+     * Tell the screen one of your comments was deleted, and how many the
+     * count lost — its replies went with it.
+     */
+    onCommentDeleted: (removed: number) => void;
+    /**
      * Whether new comments are taken. An archived article keeps the thread it
      * had — its author can still read it — but the server refuses anything
      * new with `ArticleNotPublishedError`.
@@ -157,10 +162,29 @@ export function ArticleScreen({ slug, renderComments }: ArticleScreenProps) {
      * Written into the overlay rather than this screen's copy, so the card in
      * the list behind moves too — the post detail screen does the same.
      */
-    const handleCommentCreated = useCallback(() => {
-        if (!article) return;
-        patch(article.id, { commentCount: article.commentCount + 1 });
-    }, [article, patch]);
+    /*
+     * Read from the store as it stands at the call, not from the copy this
+     * render holds: a callback made before the last change would count from
+     * the number before it, and two deletes in a row would take off one.
+     */
+    const moveCommentCount = useCallback(
+        (by: number) => {
+            if (!fromServer) return;
+            const current =
+                useArticleOverlayStore.getState().overlays[fromServer.id]
+                    ?.commentCount ?? fromServer.commentCount;
+            patch(fromServer.id, { commentCount: Math.max(0, current + by) });
+        },
+        [fromServer, patch],
+    );
+    const handleCommentCreated = useCallback(
+        () => moveCommentCount(1),
+        [moveCommentCount],
+    );
+    const handleCommentDeleted = useCallback(
+        (removed: number) => moveCommentCount(-removed),
+        [moveCommentCount],
+    );
 
     const content = article ? (
         <>
@@ -381,6 +405,7 @@ export function ArticleScreen({ slug, renderComments }: ArticleScreenProps) {
                     article,
                     header: content ?? <></>,
                     onCommentCreated: handleCommentCreated,
+                    onCommentDeleted: handleCommentDeleted,
                     canComment: article.status === "PUBLISHED",
                 })
             ) : (
